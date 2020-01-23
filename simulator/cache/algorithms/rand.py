@@ -29,8 +29,9 @@ class Rand(StateDrivenOnlineProcessor):
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
 			missing_bytes: int = 0,
+			in_cache_bytes: int = 0,
 			free_bytes: int = 0,
-			required_bytes: int = 0,
+			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
 			ind = random.randrange(len(self._files))
 			file = self._files[ind]

@@ -24,8 +24,9 @@ class StateDrivenProcessor(object):
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
 			missing_bytes: int = 0,
+			in_cache_bytes: int = 0,
 			free_bytes: int = 0,
-			required_bytes: int = 0,
+			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
 			raise NotImplementedError
 
@@ -70,16 +71,25 @@ class StateDrivenProcessor(object):
 		requested_bytes = sum(part_bytes for part_ind, part_bytes in access.parts)
 		contained_bytes = self._storage.contained_bytes(access.file, access.parts)
 		missing_bytes = requested_bytes - contained_bytes
+		in_cache_bytes = sum(part_bytes for _, part_bytes in self._storage.parts(access.file))
 
 		if missing_bytes == 0:
-			total_bytes = sum(part_bytes for _, part_bytes in self._storage.parts(access.file))
+			self._state.process_access(
+				access.file,
+				ind = ind,
+				ensure = False,
+				requested_bytes = requested_bytes,
+				placed_bytes = 0,
+				total_bytes = in_cache_bytes,
+			)
+
 			return AccessInfo(
 				access,
 				contained_bytes,
 				missing_bytes,
 				0,
 				0,
-				total_bytes,
+				in_cache_bytes,
 			)
 
 		free_bytes = self._storage.free_bytes
@@ -92,20 +102,22 @@ class StateDrivenProcessor(object):
 				requested_bytes = requested_bytes,
 				contained_bytes = contained_bytes,
 				missing_bytes = missing_bytes,
+				in_cache_bytes = in_cache_bytes,
 				free_bytes = free_bytes,
-				required_bytes = missing_bytes - free_bytes,
+				required_free_bytes = missing_bytes - free_bytes,
 			):
 				evicted_file_bytes = self._storage.evict(eviction_candidate)
 
 				evicted_bytes += evicted_file_bytes
 				free_bytes += evicted_file_bytes
 
-		placed_bytes = self._storage.place(access.file, access.parts)
-		total_bytes = sum(part_bytes for _, part_bytes in self._storage.parts(access.file))
+		placed_bytes = self._storage.place(access.file, access.parts) # should equal missing_bytes
+		total_bytes = in_cache_bytes + placed_bytes
+
 		self._state.process_access(
 			access.file,
 			ind = ind,
-			ensure = True,
+			ensure = contained_bytes > 0,
 			requested_bytes = requested_bytes,
 			placed_bytes = placed_bytes,
 			total_bytes = total_bytes,
@@ -134,8 +146,9 @@ class StateDrivenOfflineProcessor(StateDrivenProcessor, OfflineProcessor):
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
 			missing_bytes: int = 0,
+			in_cache_bytes: int = 0,
 			free_bytes: int = 0,
-			required_bytes: int = 0,
+			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
 			raise NotImplementedError
 
