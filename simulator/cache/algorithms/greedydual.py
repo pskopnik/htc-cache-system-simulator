@@ -23,7 +23,9 @@ class GreedyDual(StateDrivenOnlineProcessor):
 
 	The cost of the file is determined by the mode argument. It can either be
 	the total size of the size in the cache (TOTAL_SIZE) or the size of the
-	file which is requested (ACCESS_SIZE).
+	accessed fraction of the file (ACCESS_SIZE). When running in ACCESS_SIZE
+	mode the credit is never reduced, i.e. the credit remains unchanged when
+	greater than the accessed fraction.
 	"""
 
 	class State(StateDrivenOnlineProcessor.State):

@@ -16,26 +16,39 @@ class Mode(Enum):
 
 
 class Landlord(StateDrivenOnlineProcessor):
-	"""Processor evicting the file with the lowest "credit" per volume from
-	the cache.
+	"""Processor evicting the file with the lowest "credit" per volume.
 
 	Volume refers to the space of the cache's storage medium taken up, i.e.
-	the file size. The credit per volume is considered for eviction decisions.
+	the size of the cached fraction of the file (referred to as the "total
+	cached size"). The credit per volume is considered for eviction decisions.
 
 	Landlord evicts the file with the lowest credit per volume. This value is
 	deducted from the credit per volume of all files remaining in the cache.
 
-	The Landlord can run in several modes. The mode determines how a files
-	credit is updated on re-access. Initially the credit is set to the cost of
-	fetching the file, i.e. the size of the file. Note this means the initial
-	credit per volume is always 1. When a file in the cache is accessed again
-	its credit is increased.
+	The Landlord processor can run in several modes. The mode determines how a
+	file's credit is updated on re-access. Initially the credit is set to the
+	cost of fetching the file, i.e. the total cached size of the file. Note
+	this means the initial credit per volume is always 1. During its lifetime
+	in the cache, the credit per volume decreases when other files are evicted
+	(see above). When a file in the cache is accessed again its credit is
+	increased up to its total cached size. A file's credit is never reduced on
+	re-access. If a mode would reduced a file's credit, the credis is left
+	unchanged instead.
 
-	TOTAL_SIZE - LRU
-	ACCESS_SIZE
-	FETCH_SIZE
-	ADD_FETCH_SIZE
-	NO_COST - FIFO
+	TOTAL_SIZE - The credit is set to the total cached size of the file. This
+	emulates LRU.
+
+	ACCESS_SIZE - The credit is set to the size of the accessed fraction of
+	the file.
+
+	FETCH_SIZE - The credit is set to the size of the newly fetched fraction
+	of the file caused by the access.
+
+	ADD_FETCH_SIZE - The fetched size is added onto the current credit.
+
+	NO_COST - A file's credit is never increased on re-access. This almost
+	emulates FIFO, but not quite, as the volume credit decreases whenever an
+	additional fraction of the file is fetched.
 
 	Landlord is a generalisation of many strategies, including FIFO, LRU,
 	GreedyDual and GreedyDual-Size.
