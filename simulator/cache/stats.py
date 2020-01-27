@@ -1,7 +1,8 @@
 from typing import Dict, Iterable, Iterator, List, Union
-from ..workload import Access, AccessScheme, FileID, Job, Submitter, Task
+
 # from ..distributor import stats
 from .processor import AccessInfo
+from ..workload import Access, AccessScheme, FileID, Job, Submitter, Task
 
 
 # class FileStats(stats.FileStats):
@@ -102,6 +103,17 @@ class TotalStats(object):
 		self.bytes_added: int = 0
 		self.bytes_removed: int = 0
 
+	def reset(self) -> None:
+		self.accesses = 0
+		self.total_bytes_accessed = 0
+		self.unique_bytes_accessed = 0
+		self.files_hit = 0
+		self.files_missed = 0
+		self.bytes_hit = 0
+		self.bytes_missed = 0
+		self.bytes_added = 0
+		self.bytes_removed = 0
+
 
 class StatsCollector(object):
 	def __init__(self, access_info_it: Iterable[AccessInfo]):
@@ -110,8 +122,8 @@ class StatsCollector(object):
 		self._total_stats: TotalStats = TotalStats()
 
 	def reset(self) -> None:
-		self._files_stats = {}
-		self._total_stats = TotalStats()
+		self._files_stats.clear()
+		self._total_stats.reset()
 
 	def __iter__(self) -> Iterator[AccessInfo]:
 		for access_info in self._access_info_it:
