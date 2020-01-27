@@ -1,27 +1,50 @@
 from apq import KeyedPQ, Item
 from dataclasses import dataclass, field
+from enum import auto, Enum
+from typing import Iterable, Optional
+
 from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 from ..storage import Storage
-from typing import Iterable, Optional
-from enum import auto, Enum
 
 
 class Mode(Enum):
-	TOTAL_COST = auto()
-	ACCESS_COST = auto()
-	FETCH_COST = auto()
-	ADD_FETCH_COST = auto()
+	TOTAL_SIZE = auto()
+	ACCESS_SIZE = auto()
+	FETCH_SIZE = auto()
+	ADD_FETCH_SIZE = auto()
 	NO_COST = auto()
 
 
 class Landlord(StateDrivenOnlineProcessor):
-	"""Processor evicting the least recently accessed file from the cache.
+	"""Processor evicting the file with the lowest "credit" per volume from
+	the cache.
+
+	Volume refers to the space of the cache's storage medium taken up, i.e.
+	the file size. The credit per volume is considered for eviction decisions.
+
+	Landlord evicts the file with the lowest credit per volume. This value is
+	deducted from the credit per volume of all files remaining in the cache.
+
+	The Landlord can run in several modes. The mode determines how a files
+	credit is updated on re-access. Initially the credit is set to the cost of
+	fetching the file, i.e. the size of the file. Note this means the initial
+	credit per volume is always 1. When a file in the cache is accessed again
+	its credit is increased.
+
+	TOTAL_SIZE - LRU
+	ACCESS_SIZE
+	FETCH_SIZE
+	ADD_FETCH_SIZE
+	NO_COST - FIFO
+
+	Landlord is a generalisation of many strategies, including FIFO, LRU,
+	GreedyDual and GreedyDual-Size.
 	"""
 
 	class State(StateDrivenProcessor.State):
 		@dataclass
 		class _FileInfo(object):
-			size: float = field(init=True)
+			size: int = field(init=True)
 			access_rent_threshold: float = field(init=True)
 
 		class Item(StateDrivenProcessor.State.Item):
@@ -39,7 +62,7 @@ class Landlord(StateDrivenOnlineProcessor):
 
 		def pop_eviction_candidates(
 			self,
-			file: FileID = "",
+			file: FileID = '',
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -48,7 +71,7 @@ class Landlord(StateDrivenOnlineProcessor):
 			free_bytes: int = 0,
 			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
-			file, running_volume_credit, _ = self._pq.pop()
+			file, running_volume_credit, _ = self._pq.pop() # Raises IndexError if empty
 			self._rent_threshold = running_volume_credit
 			return (file,)
 
@@ -60,9 +83,9 @@ class Landlord(StateDrivenOnlineProcessor):
 
 		def remove(self, item: StateDrivenProcessor.State.Item) -> None:
 			if not isinstance(item, Landlord.State.Item):
-				raise TypeError("unsupported item type passed")
+				raise TypeError('unsupported item type passed')
 
-			del self._pq[item._file]
+			self.remove_file(item._file)
 
 		def remove_file(self, file: FileID) -> None:
 			del self._pq[file]
@@ -77,51 +100,59 @@ class Landlord(StateDrivenOnlineProcessor):
 			total_bytes: int = 0,
 		) -> None:
 			it: Optional[Item[Landlord.State._FileInfo]]
+			current_credit: float
 			try:
 				it = self._pq[file]
+
+				current_credit = (it.value - self._rent_threshold) * it.data.size
 			except KeyError:
 				it = None
 
-			credit_base = self._credit_base(
+				current_credit = 0.0
+
+			credit = self._credit(
 				requested_bytes = requested_bytes,
 				placed_bytes = placed_bytes,
 				total_bytes = total_bytes,
+				current_credit = current_credit,
 			)
-			credit = credit_base / total_bytes + self._rent_threshold
+			running_volume_credit = credit / total_bytes + self._rent_threshold
 
 			if it is None:
-				it = self._pq.add(file, credit, Landlord.State._FileInfo(0, 0.0))
+				it = self._pq.add(file, running_volume_credit, Landlord.State._FileInfo(0, 0.0))
 			else:
-				self._pq.change_value(it, credit)
+				self._pq.change_value(it, running_volume_credit)
 
-			it.data.access_rent_threshold = self._rent_threshold
 			it.data.size = total_bytes
+			it.data.access_rent_threshold = self._rent_threshold
 
-		def _credit_base(
+		def _credit(
 			self,
 			requested_bytes: int = 0,
 			placed_bytes: int = 0,
 			total_bytes: int = 0,
+			current_credit: float = 0.0,
 		) -> float:
 			mode = self._mode
-			if mode is Mode.TOTAL_COST:
+			if mode is Mode.TOTAL_SIZE:
 				return float(total_bytes)
-			elif mode is Mode.ACCESS_COST:
-				return float(requested_bytes)
-			elif mode is Mode.FETCH_COST:
-				return float(placed_bytes)
-			elif mode is Mode.ADD_FETCH_COST:
-				# return min(current_credit + placed_bytes, initial_credit)
-				pass
+			elif mode is Mode.ACCESS_SIZE:
+				return max(current_credit, float(requested_bytes))
+			elif mode is Mode.FETCH_SIZE:
+				return max(current_credit, float(placed_bytes))
+			elif mode is Mode.ADD_FETCH_SIZE:
+				return current_credit + float(placed_bytes)
 			elif mode is Mode.NO_COST:
-				# return float(current_credit)
-				pass
+				if current_credit == 0.0:
+					return float(total_bytes)
+				else:
+					return current_credit
 
 			raise NotImplementedError
 
 	def _init_state(self) -> 'Landlord.State':
 		return Landlord.State(self._mode)
 
-	def __init__(self, storage: Storage, mode: Mode=Mode.TOTAL_COST, state: Optional[State]=None):
+	def __init__(self, storage: Storage, mode: Mode=Mode.TOTAL_SIZE, state: Optional[State]=None):
 		self._mode: Mode = mode
 		super(Landlord, self).__init__(storage, state=state)

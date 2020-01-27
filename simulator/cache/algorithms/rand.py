@@ -1,7 +1,8 @@
-from ..processor import AccessInfo, Access
-from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 from typing import Iterable, List, Optional, Set
 import random
+
+from ..processor import AccessInfo, Access
+from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 
 
 class Rand(StateDrivenOnlineProcessor):
@@ -24,7 +25,7 @@ class Rand(StateDrivenOnlineProcessor):
 
 		def pop_eviction_candidates(
 			self,
-			file: FileID = "",
+			file: FileID = '',
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -33,12 +34,12 @@ class Rand(StateDrivenOnlineProcessor):
 			free_bytes: int = 0,
 			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
-			ind = random.randrange(len(self._files))
-			file = self._files[ind]
+			ind = random.randrange(len(self._files)) # raises ValueError if empty
+			candidate = self._files[ind]
 			self._files[ind] = self._files[-1]
 			self._files.pop()
-			self._files_set.remove(file)
-			return (file,)
+			self._files_set.remove(candidate)
+			return (candidate,)
 
 		def find(self, file: FileID) -> Optional[Item]:
 			try:
@@ -49,12 +50,17 @@ class Rand(StateDrivenOnlineProcessor):
 
 		def remove(self, item: StateDrivenProcessor.State.Item) -> None:
 			if not isinstance(item, Rand.State.Item):
-				raise TypeError("unsupported item type passed")
+				raise TypeError('unsupported item type passed')
 
-			del self._files[item._ind]
+			file = item.file
+
+			self._files[item._ind] = self._files[-1]
+			self._files.pop()
+			self._files_set.remove(file)
 
 		def remove_file(self, file: FileID) -> None:
 			self._files.remove(file)
+			self._files_set.remove(file)
 
 		def process_access(
 			self,
@@ -65,7 +71,7 @@ class Rand(StateDrivenOnlineProcessor):
 			placed_bytes: int = 0,
 			total_bytes: int = 0,
 		) -> None:
-			if not ensure or file not in self._files_set:
+			if ensure and file not in self._files_set:
 				self._files.append(file)
 				self._files_set.add(file)
 

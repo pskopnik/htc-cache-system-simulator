@@ -1,13 +1,13 @@
+from apq import KeyedPQ
+from array import array
+import itertools
+import math
+from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union
+
+from ..accesses import SimpleAccessReader
 from ..processor import AccessInfo, Access
 from ..state import FileID, StateDrivenProcessor, StateDrivenOfflineProcessor
 from ..storage import Storage
-from ..accesses import SimpleAccessReader
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union
-from apq import KeyedPQ
-from array import array
-import math
-import itertools
-
 
 class ReuseTimer(object):
 	def __init__(self, accesses: SimpleAccessReader) -> None:
@@ -45,10 +45,10 @@ class ReuseTimer(object):
 			file = accesses[ind].file
 			for i in range(ind + 1, reuse_ind):
 				if accesses[i].file == file:
-					raise Exception("Found earlier reuse ind", ind, i, reuse_ind, file)
+					raise Exception('Found earlier reuse ind', ind, i, reuse_ind, file)
 			if reuse_ind != len(self._reuse_ind):
 				if accesses[reuse_ind].file != file:
-					raise Exception("Invalid reuse ind", reuse_ind, file)
+					raise Exception('Invalid reuse ind', reuse_ind, file)
 
 	@staticmethod
 	def _build_reuse_ind(accesses: SimpleAccessReader) -> 'array[int]':
@@ -65,6 +65,17 @@ class ReuseTimer(object):
 
 
 class MIN(StateDrivenOfflineProcessor):
+	"""Processor performing Belady's MIN algorithm offline.
+
+	The algorithm yields the best possible hit rate (uniform cost, uniform
+	size caching problem). It does so by first computing the reuse index for
+	each access, i.e. the first index in the accesses sequence when the file
+	is accessed again. This is computed using ReuseTimer which iterates the
+	accesses sequence backwards. The processor then evicts the file from the
+	cache with the future-most reuse index. The next reuse index for each file
+	in the cache is kept in a PQ and updated on access by querying the
+	ReuseTimer.
+	"""
 	class State(StateDrivenOfflineProcessor.State):
 		class Item(StateDrivenOfflineProcessor.State.Item):
 			def __init__(self, file: FileID):
@@ -80,7 +91,7 @@ class MIN(StateDrivenOfflineProcessor):
 
 		def pop_eviction_candidates(
 			self,
-			file: FileID = "",
+			file: FileID = '',
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -89,9 +100,7 @@ class MIN(StateDrivenOfflineProcessor):
 			free_bytes: int = 0,
 			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
-			# Could raise IndexError.
-			# That would mean that the cache is not big enough to hold the file.
-			file, _, _ = self._pq.pop()
+			file, _, _ = self._pq.pop() # Raises IndexError if empty
 			return (file,)
 
 		def find(self, file: FileID) -> Optional[Item]:
@@ -102,9 +111,9 @@ class MIN(StateDrivenOfflineProcessor):
 
 		def remove(self, item: StateDrivenProcessor.State.Item) -> None:
 			if not isinstance(item, MIN.State.Item):
-				raise TypeError("unsupported item type passed")
+				raise TypeError('unsupported item type passed')
 
-			del self._pq[item._file]
+			self.remove_file(item._file)
 
 		def remove_file(self, file: FileID) -> None:
 			del self._pq[file]

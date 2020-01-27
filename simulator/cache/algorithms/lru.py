@@ -1,50 +1,53 @@
+from collections import OrderedDict
+from typing import Generic, Iterable, Iterator, Optional, Tuple, TypeVar
+
 from ..processor import AccessInfo, Access
 from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
-from typing import Generic, Iterable, Iterator, Optional, TypeVar
-# from typing import OrderedDict # TODO This is not properly recognised by mypy
-from collections import OrderedDict
 
-
+KeyType = TypeVar('KeyType')
 ElementType = TypeVar('ElementType')
 
-class LRUStructure(Generic[ElementType]):
+
+class LRUStructure(Generic[KeyType, ElementType]):
 	def __init__(self) -> None:
-		self._odict: OrderedDict[ElementType, None] = OrderedDict()
+		self._odict: OrderedDict[KeyType, ElementType] = OrderedDict()
 
 	def __len__(self) -> int:
 		return len(self._odict)
 
-	def __contains__(self, el: ElementType) -> bool:
-		return el in self._odict
+	def __contains__(self, key: KeyType) -> bool:
+		return key in self._odict
 
-	def __delitem__(self, el: ElementType) -> None:
-		del self._odict[el]
+	def __getitem__(self, key: KeyType) -> ElementType:
+		return self._odict[key]
 
-	def __iter__(self) -> Iterator[ElementType]:
+	def __setitem__(self, key: KeyType, el: ElementType) -> None:
+		self._odict[key] = el
+
+	def __delitem__(self, key: KeyType) -> None:
+		del self._odict[key]
+
+	def __iter__(self) -> Iterator[KeyType]:
 		"""Returns an iterator yielding the most recently accessed elements
 		first.
 		"""
 		return iter(self._odict.keys())
 
-	def access(self, el: ElementType, ensure: bool=True) -> None:
-		"""Reproduces an element access by moving the element to the front of
+	def access(self, key: KeyType) -> None:
+		"""Replicates an element access by moving the element to the front of
 		the LRU structure.
 
 		If ensure is False and the element is not in the structure, a KeyError
 		will be raised.
 		"""
-		if ensure:
-			self._odict[el] = None
+		self._odict.move_to_end(key, last=False)
 
-		self._odict.move_to_end(el, last=False)
-
-	def pop(self) -> ElementType:
+	def pop(self) -> Tuple[KeyType, ElementType]:
 		"""Removes the least recently accessed element from the LRU structure.
 
 		Raises a KeyError if there are no elements.
 		"""
-		key, _ = self._odict.popitem()
-		return key
+		return self._odict.popitem()
 
 
 class LRU(StateDrivenOnlineProcessor):
@@ -61,11 +64,11 @@ class LRU(StateDrivenOnlineProcessor):
 				return self._file
 
 		def __init__(self) -> None:
-			self._lru: LRUStructure[FileID] = LRUStructure()
+			self._lru: LRUStructure[FileID, None] = LRUStructure()
 
 		def pop_eviction_candidates(
 			self,
-			file: FileID = "",
+			file: FileID = '',
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -74,7 +77,8 @@ class LRU(StateDrivenOnlineProcessor):
 			free_bytes: int = 0,
 			required_free_bytes: int = 0,
 		) -> Iterable[FileID]:
-			return (self._lru.pop(),)
+			file, _ = self._lru.pop() # Raises KeyError if empty
+			return (file,)
 
 		def find(self, file: FileID) -> Optional[Item]:
 			if file in self._lru:
@@ -84,9 +88,9 @@ class LRU(StateDrivenOnlineProcessor):
 
 		def remove(self, item: StateDrivenProcessor.State.Item) -> None:
 			if not isinstance(item, LRU.State.Item):
-				raise TypeError("unsupported item type passed")
+				raise TypeError('unsupported item type passed')
 
-			del self._lru[item._file]
+			self.remove_file(item._file)
 
 		def remove_file(self, file: FileID) -> None:
 			del self._lru[file]
@@ -100,7 +104,9 @@ class LRU(StateDrivenOnlineProcessor):
 			placed_bytes: int = 0,
 			total_bytes: int = 0,
 		) -> None:
-			self._lru.access(file, ensure=ensure)
+			if ensure:
+				self._lru[file] = None
+			self._lru.access(file)
 
 	def _init_state(self) -> 'LRU.State':
 		return LRU.State()
