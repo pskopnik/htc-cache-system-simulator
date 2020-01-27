@@ -43,10 +43,10 @@ class JobAssignment(object):
 class JobScheduler(object):
 	"""Schedules jobs to cores.
 
-    Artificially stretches the end time to the end of the second.
+	Artificially stretches the end time to the end of the second.
 
-      job_start_ts   true end job_end_ts
-      |                     | |
+	  job_start_ts   true end job_end_ts
+	  |                     | |
 	  ____________________________________
 	t 0   1   2   3   4   5   6   7   8
 	"""
@@ -94,15 +94,15 @@ class AccessScheduler(object):
 	   combination with __iter__.
 
 
-    What is the model for overlapping accesses?
-    How is start and end defined? (no need for the definition of the end of an access)
+	What is the model for overlapping accesses?
+	How is start and end defined? (no need for the definition of the end of an access)
 
-        end of access / start of next
-            |
-      access_ts
-      |      -
+	    end of access / start of next
+	        |
+	  access_ts
+	  |      -
       job_start_ts   true end job_end_ts
-      |                     | |
+	  |                     | |
 	  ____________________________________
 	t 0   1   2   3   4   5   6   7   8
 
@@ -170,8 +170,10 @@ class AccessScheduler(object):
 			try:
 				opt_job_assignment = self._assignment_it.next_if_before(ts)
 			except StopIteration:
+				# assignment_it is exhausted
 				break
 			if opt_job_assignment is None:
+				# The next assignment in assignment_it occurs after ts
 				break
 			self._push_assignment(opt_job_assignment)
 

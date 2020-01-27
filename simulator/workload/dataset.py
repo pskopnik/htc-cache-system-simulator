@@ -23,11 +23,11 @@ class DataSet(object):
 	a directory. If files_per_directory is greater than zero, the id space is
 	split into uniquely named directories:
 
-    <numeric data set id>/<numeric directory id>/<numeric file id>
+	<numeric data set id>/<numeric directory id>/<numeric file id>
 
     If files_per_directory is 0 the sub-directory is omitted:
 
-    <numeric data set id>/<numeric file id>
+	<numeric data set id>/<numeric file id>
 
 	The generation parameter gives an indication of the 'version' of the data
 	set. All operations modifying the file list increment the generation.
