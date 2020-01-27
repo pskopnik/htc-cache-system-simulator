@@ -5,8 +5,15 @@ from .accesses import SimpleAccessReader
 from .processor import AccessInfo, OnlineProcessor, OfflineProcessor
 from .storage import Storage
 
-__all__ = ['FileID', 'StateDrivenProcessor', 'StateDrivenOnlineProcessor', 'StateDrivenOfflineProcessor']
+__all__ = [
+	'FileID',
+	'StateDrivenProcessor',
+	'StateDrivenOnlineProcessor',
+	'StateDrivenOfflineProcessor',
+	'Storage',
+]
 
+# TODO: Move Item type of StateDrivenProcessor.remove() here
 
 class StateDrivenProcessor(object):
 	class State(abc.ABC):
@@ -111,13 +118,21 @@ class StateDrivenProcessor(object):
 				evicted_bytes += evicted_file_bytes
 				free_bytes += evicted_file_bytes
 
+				if eviction_candidate == access.file:
+					# TODO: just evicted the file about to be accessed...
+					# Should a warning be emitted?
+
+					contained_bytes = 0
+					missing_bytes = requested_bytes
+					in_cache_bytes = 0
+
 		placed_bytes = self._storage.place(access.file, access.parts) # should equal missing_bytes
 		total_bytes = in_cache_bytes + placed_bytes
 
 		self._state.process_access(
 			access.file,
 			ind = ind,
-			ensure = contained_bytes > 0,
+			ensure = in_cache_bytes == 0, # If any byte is in cache, the state tracks the file
 			requested_bytes = requested_bytes,
 			placed_bytes = placed_bytes,
 			total_bytes = total_bytes,
