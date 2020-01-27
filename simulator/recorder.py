@@ -27,6 +27,16 @@ def replay(file: TextIO) -> Iterator[AccessAssignment]:
 def reverse_replay(file: TextIO) -> Iterator[AccessAssignment]:
 	return _reverse_replay(file)
 
+def replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
+	with open(path) as file:
+		for assgnm in replay(file):
+			yield assgnm
+
+def reverse_replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
+	with open(path) as file:
+		for assgnm in reverse_replay(file):
+			yield assgnm
+
 def _replay(
 	file: TextIO,
 	begin_pos: int = 0,
@@ -146,6 +156,7 @@ def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
 		Access(
 			access['access_ts'],
 			access['file'],
+			# TODO: These __getitem__ calls are expensive!
 			list(map(cast(Callable[[Any], Tuple[int, int]], tuple), access['parts'])),
 		),
 		dct['cache_proc'],

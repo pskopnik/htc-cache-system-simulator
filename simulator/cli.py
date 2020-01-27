@@ -200,10 +200,8 @@ def cache_system_from_args(args: Any) -> CacheSystem:
 		processors = map(lambda f: f(Storage(args.storage_size)), itertools.repeat(processor_factory, args.cache_processor_count))
 
 	if online:
-		file = open(args.file_path)
-
 		access_it = filter_accesses_stop_early(
-			recorder.replay(file),
+			recorder.replay_path(args.file_path),
 			args.process_time,
 			args.process_accesses,
 			None,
