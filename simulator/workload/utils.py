@@ -40,7 +40,7 @@ def consume(it: Iterable[Any], n: Optional[int]=None) -> None:
 	if n is None:
 		collections.deque(it, maxlen=0)
 	else:
-		next(islice(it, n, n), None)
+		next(itertools.islice(it, n, n), None)
 
 def accumulate_initial(iterable: Iterable[T], func: Callable[[T, T], T], initial: Optional[T]=None) -> Iterator[T]:
 	"""Like itertools.accumulate but yields initial first, if not None.

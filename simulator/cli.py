@@ -19,7 +19,7 @@ from .cache.storage import Storage
 
 from .cache.algorithms.lru import LRU
 from .cache.algorithms.rand import Rand
-from .cache.algorithms.landlord import Landlord, Mode
+from .cache.algorithms.landlord import Landlord, Mode as LandlordMode
 from .cache.algorithms.min import MIN
 
 def filter_accesses_stop_early(
@@ -141,6 +141,7 @@ def replay(args: Any) -> None:
 
 		cache_sys.stats.reset()
 
+	# TODO: consume
 	collections.deque(cache_sys, maxlen=0)
 
 	write_cache_stats_as_csv(cache_sys.stats, sys.stdout, header=args.header)
@@ -230,7 +231,7 @@ def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processo
 	elif args.cache_processor == 'lru':
 		return LRU, True, False
 	elif args.cache_processor == 'landlord':
-		return functools.partial(Landlord, mode=Mode.FETCH_COST), True, False
+		return functools.partial(Landlord, mode=LandlordMode.FETCH_SIZE), True, False
 	elif args.cache_processor == 'min':
 		return MIN, False, True
 	else:
