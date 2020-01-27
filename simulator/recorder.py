@@ -1,11 +1,12 @@
+import abc
+from enum import auto, Enum
 from io import SEEK_SET, SEEK_CUR, SEEK_END
+import orjson
 from os import PathLike
-from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, TextIO, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, BinaryIO, Tuple
+
 from .distributor import AccessAssignment
 from .workload import Access
-import json
-from enum import auto, Enum
-import abc
 
 
 class _EndOfFile(Exception):
@@ -13,32 +14,32 @@ class _EndOfFile(Exception):
 
 
 class _ReplayStateAccessor(object):
-	def __init__(self, file: TextIO) -> None:
-		self._file: TextIO = file
+	def __init__(self, file: BinaryIO) -> None:
+		self._file: BinaryIO = file
 
 	@property
-	def file(self) -> TextIO:
+	def file(self) -> BinaryIO:
 		return self._file
 
 
-def replay(file: TextIO) -> Iterator[AccessAssignment]:
+def replay(file: BinaryIO) -> Iterator[AccessAssignment]:
 	return _replay(file)
 
-def reverse_replay(file: TextIO) -> Iterator[AccessAssignment]:
+def reverse_replay(file: BinaryIO) -> Iterator[AccessAssignment]:
 	return _reverse_replay(file)
 
 def replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
-	with open(path) as file:
+	with open(path, mode='rb') as file:
 		for assgnm in replay(file):
 			yield assgnm
 
 def reverse_replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
-	with open(path) as file:
+	with open(path, mode='rb') as file:
 		for assgnm in reverse_replay(file):
 			yield assgnm
 
 def _replay(
-	file: TextIO,
+	file: BinaryIO,
 	begin_pos: int = 0,
 	end_pos: Optional[int] = None,
 	state_cb: Optional[Callable[[_ReplayStateAccessor], None]] = None,
@@ -60,7 +61,7 @@ def _replay(
 			break
 
 def _reverse_replay(
-	file: TextIO,
+	file: BinaryIO,
 	begin_pos: int = 0,
 	end_pos: Optional[int] = None,
 ) -> Iterator[AccessAssignment]:
@@ -69,7 +70,7 @@ def _reverse_replay(
 	else:
 		file.seek(0, SEEK_END)
 
-	buf = ""
+	buf = b''
 	chunk_size = 8 * 1024
 	exhausted = False
 	start_ind = 0
@@ -92,7 +93,7 @@ def _reverse_replay(
 			buf = buf.rstrip()
 
 			try:
-				start_ind = buf.rindex('\n') + 1
+				start_ind = buf.rindex(b'\n') + 1
 			except ValueError:
 				if exhausted:
 					# at beginning of file, '\n' at -1
@@ -107,7 +108,7 @@ def _reverse_replay(
 
 			l = buf[start_ind:]
 			buf = buf[:start_ind]
-			dct = json.loads(l)
+			dct = orjson.loads(l)
 			yield _dct_to_access(dct)
 
 			if exhausted and start_ind == 0:
@@ -119,26 +120,31 @@ def filter_cache_processor(cache_proc: int, it: Iterable[AccessAssignment]) -> I
 		filter(lambda assgnm: assgnm.cache_proc == cache_proc, it),
 	)
 
-def record(file: TextIO, it: Iterable[AccessAssignment]) -> None:
+def record(file: BinaryIO, it: Iterable[AccessAssignment]) -> None:
 	for access in it:
 		_write_access(file, access)
 
-def passthrough_record(file: TextIO, it: Iterable[AccessAssignment]) -> Iterator[AccessAssignment]:
+def record_path(path: 'PathLike[Any]', it: Iterable[AccessAssignment]) -> None:
+	with open(path, mode='wb') as file:
+		record(file, it)
+
+def passthrough_record(file: BinaryIO, it: Iterable[AccessAssignment]) -> Iterator[AccessAssignment]:
 	for access in it:
 		_write_access(file, access)
 		yield access
 
-def _read_access(file: TextIO) -> AccessAssignment:
+def _read_access(file: BinaryIO) -> AccessAssignment:
 	l = file.readline()
 	if len(l) == 0:
 		raise _EndOfFile()
 
-	dct = json.loads(l)
+	dct = orjson.loads(l)
 	return _dct_to_access(dct)
 
-def _write_access(file: TextIO, assgnm: AccessAssignment) -> None:
-	json.dump(_access_to_dct(assgnm), file)
-	file.write('\n')
+def _write_access(file: BinaryIO, assgnm: AccessAssignment) -> None:
+	buf = orjson.dumps(_access_to_dct(assgnm))
+	file.write(buf)
+	file.write(b'\n')
 
 def _access_to_dct(assgnm: AccessAssignment) -> Dict[str, Any]:
 	return {
@@ -164,9 +170,11 @@ def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
 
 
 class _ForwardsCursor(object):
-	def __init__(self, file: TextIO, cache_proc: int) -> None:
+	"""WIP: An advanced iterator over a file-backed access assignment sequence.
+	"""
+	def __init__(self, file: BinaryIO, cache_proc: int) -> None:
 		file.seek(0, SEEK_SET)
-		self._file: TextIO = file
+		self._file: BinaryIO = file
 		self._cache_proc: int = cache_proc
 
 	def __iter__(self) -> Iterator[Access]:
@@ -299,7 +307,7 @@ class Reader(object):
 
 		length: int = 0
 
-		with open(self._path) as file:
+		with open(self._path, mode='rb') as file:
 			it = _replay(
 				file,
 				begin_pos = self._begin_pos,
@@ -319,7 +327,7 @@ class Reader(object):
 
 		length: int = 0
 
-		with open(self._path) as file:
+		with open(self._path, mode='rb') as file:
 			it = _reverse_replay(
 				file,
 				begin_pos = self._begin_pos,
@@ -370,7 +378,7 @@ class Reader(object):
 
 		def open_and_replay() -> Iterator[AccessAssignment]:
 			nonlocal read_count
-			with open(self._path) as file:
+			with open(self._path, mode='rb') as file:
 				for assgnm in _replay(file, state_cb=state_cb):
 					read_count += 1
 					yield assgnm

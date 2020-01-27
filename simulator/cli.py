@@ -120,7 +120,7 @@ def record(args: Any) -> None:
 		None,
 	)
 
-	recorder.record(args.file, access_it)
+	recorder.record_path(args.file_path, access_it)
 
 	# TODO extract and write stats
 
@@ -260,7 +260,7 @@ parser = argparse.ArgumentParser(description='Simulate HTC cache system.')
 subparsers = parser.add_subparsers(dest='command', required=True)
 
 parser_record = subparsers.add_parser('record', help='Generate cache-seen accesses by jobs yielded by a workload generator and scheduled to a node set.')
-parser_record.add_argument('-f', '--file', required=True, type=argparse.FileType('w'), help='output file to which the accesses are written.')
+parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
 parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; has iterate as long as all limits hold semantic.')
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; has iterate as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 

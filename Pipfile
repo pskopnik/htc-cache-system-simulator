@@ -12,6 +12,7 @@ flake8 = "*"
 apq = {path = "./../apq/dist/apq-0.6-cp37-cp37m-linux_x86_64.whl"}
 bjec = {editable = true,path = "./../../bjec"}
 typing-extensions = "*"
+orjson = "*"
 
 [requires]
 python_version = "3.7"
