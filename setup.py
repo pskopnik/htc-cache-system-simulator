@@ -15,6 +15,7 @@ setup(
 	install_requires = [
 		'apq',
 		'bjec',
+		'typing-extensions',
 	],
 	entry_points = {
 		'console_scripts': ['simulator=simulator.cli:main'],
