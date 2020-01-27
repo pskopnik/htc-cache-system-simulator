@@ -163,7 +163,7 @@ def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
 			access['access_ts'],
 			access['file'],
 			# TODO: These __getitem__ calls are expensive!
-			list(map(cast(Callable[[Any], Tuple[int, int]], tuple), access['parts'])),
+			list(map(cast('Callable[[Any], Tuple[int, int]]', tuple), access['parts'])),
 		),
 		dct['cache_proc'],
 	)
