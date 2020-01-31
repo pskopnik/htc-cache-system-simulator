@@ -25,7 +25,6 @@ function() {
 		ggplot() +
 			geom_line(aes(x=access_index, y=state_bytes, colour="StatsCollector's State")) +
 			geom_line(aes(x=access_index, y=rss_bytes, colour="Resident Size Set (RSS)")) +
-			geom_line(aes(x=access_index, y=rss_bytes - state_bytes)) +
 			scale_x_continuous(labels=format_si) +
 			scale_y_continuous(breaks=extended_breaks(Q=c(1, 1024)), labels=format_bytes) +
 			labs(
@@ -39,7 +38,7 @@ function() {
 
 	d %>%
 		ggplot() +
-			geom_line(aes(x=access_index, y=rss_bytes - state_bytes, colour="Non-StatsCollector's State")) +
+			geom_line(aes(x=access_index, y=rss_bytes - state_bytes, colour="Non-StatsCollector")) +
 			geom_line(aes(x=access_index, y=rss_bytes, colour="Resident Size Set (RSS)")) +
 			scale_x_continuous(labels=format_si) +
 			scale_y_continuous(breaks=extended_breaks(Q=c(1, 1024)), labels=format_bytes) +
