@@ -118,15 +118,7 @@ class MIN(StateDrivenOfflineProcessor):
 		def remove_file(self, file: FileID) -> None:
 			del self._pq[file]
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			val = self._reuse_timer.reuse_ind_inf(ind)
 			self._pq.add_or_change_value(file, val, None)
 

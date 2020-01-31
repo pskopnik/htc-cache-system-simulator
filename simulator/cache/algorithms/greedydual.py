@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Iterable, Optional
 
-from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
+from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
 
 
 class Mode(Enum):
@@ -76,17 +76,9 @@ class GreedyDual(StateDrivenOnlineProcessor):
 		def remove_file(self, file: FileID) -> None:
 			del self._pq[file]
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			if self._mode == Mode.TOTAL_SIZE:
-				credit = float(total_bytes + self._threshold)
+				credit = float(info.total_bytes + self._threshold)
 				it = self._pq.add_or_change_value(
 					file,
 					self._threshold + credit,
@@ -94,7 +86,7 @@ class GreedyDual(StateDrivenOnlineProcessor):
 				)
 				it.data.access_threshold = self._threshold
 			elif self._mode == Mode.ACCESS_SIZE:
-				self._process_access_access_size(file, requested_bytes)
+				self._process_access_access_size(file, info.bytes_requested)
 			else:
 				raise NotImplementedError
 

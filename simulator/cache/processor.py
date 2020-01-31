@@ -25,6 +25,10 @@ class AccessInfo(object):
 		self.bytes_removed: int = bytes_removed
 		self.total_bytes: int = total_bytes
 
+	@property
+	def bytes_requested(self) -> int:
+		return self.bytes_hit + self.bytes_missed
+
 	@staticmethod
 	def key(access_info: 'AccessInfo') -> TimeStamp:
 		return access_info.access.access_ts

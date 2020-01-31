@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import auto, Enum
 from typing import Iterable, Optional
 
-from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
+from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 from ..storage import Storage
 
 
@@ -103,15 +103,7 @@ class Landlord(StateDrivenOnlineProcessor):
 		def remove_file(self, file: FileID) -> None:
 			del self._pq[file]
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			it: Optional[Item[Landlord.State._FileInfo]]
 			current_credit: float
 			try:
@@ -123,9 +115,11 @@ class Landlord(StateDrivenOnlineProcessor):
 
 				current_credit = 0.0
 
+			total_bytes = info.total_bytes
+
 			credit = self._credit(
-				requested_bytes = requested_bytes,
-				placed_bytes = placed_bytes,
+				requested_bytes = info.bytes_requested,
+				placed_bytes = info.bytes_added,
 				total_bytes = total_bytes,
 				current_credit = current_credit,
 			)

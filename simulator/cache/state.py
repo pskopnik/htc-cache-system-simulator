@@ -6,6 +6,7 @@ from .processor import AccessInfo, OnlineProcessor, OfflineProcessor
 from .storage import Storage
 
 __all__ = [
+	'AccessInfo',
 	'FileID',
 	'StateDrivenProcessor',
 	'StateDrivenOnlineProcessor',
@@ -50,15 +51,7 @@ class StateDrivenProcessor(object):
 			raise NotImplementedError
 
 		@abc.abstractmethod
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			raise NotImplementedError
 
 	def __init__(self, storage: Storage, state: Optional[State]=None):
@@ -81,16 +74,7 @@ class StateDrivenProcessor(object):
 		in_cache_bytes = sum(part_bytes for _, part_bytes in self._storage.parts(access.file))
 
 		if missing_bytes == 0:
-			self._state.process_access(
-				access.file,
-				ind = ind,
-				ensure = False,
-				requested_bytes = requested_bytes,
-				placed_bytes = 0,
-				total_bytes = in_cache_bytes,
-			)
-
-			return AccessInfo(
+			info = AccessInfo(
 				access,
 				contained_bytes,
 				missing_bytes,
@@ -98,6 +82,8 @@ class StateDrivenProcessor(object):
 				0,
 				in_cache_bytes,
 			)
+			self._state.process_access(access.file, ind, False, info)
+			return info
 
 		free_bytes = self._storage.free_bytes
 		evicted_bytes = 0
@@ -122,6 +108,10 @@ class StateDrivenProcessor(object):
 					# TODO: just evicted the file about to be accessed...
 					# Should a warning be emitted?
 
+					# This also affects statistics, conceptually the eviction
+					# takes place before re-placement. I.e. the access is a
+					# a complete miss.
+
 					contained_bytes = 0
 					missing_bytes = requested_bytes
 					in_cache_bytes = 0
@@ -129,16 +119,7 @@ class StateDrivenProcessor(object):
 		placed_bytes = self._storage.place(access.file, access.parts) # should equal missing_bytes
 		total_bytes = in_cache_bytes + placed_bytes
 
-		self._state.process_access(
-			access.file,
-			ind = ind,
-			ensure = in_cache_bytes == 0, # If any byte is in cache, the state tracks the file
-			requested_bytes = requested_bytes,
-			placed_bytes = placed_bytes,
-			total_bytes = total_bytes,
-		)
-
-		return AccessInfo(
+		info = AccessInfo(
 			access,
 			contained_bytes,
 			missing_bytes,
@@ -146,6 +127,10 @@ class StateDrivenProcessor(object):
 			evicted_bytes,
 			total_bytes,
 		)
+		# If any byte is in cache, the state tracks the file
+		ensure = in_cache_bytes == 0
+		self._state.process_access(access.file, ind, ensure, info)
+		return info
 
 
 class StateDrivenOnlineProcessor(StateDrivenProcessor, OnlineProcessor):
@@ -176,21 +161,13 @@ class StateDrivenOfflineProcessor(StateDrivenProcessor, OfflineProcessor):
 		def remove_file(self, file: FileID) -> None:
 			raise NotImplementedError
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			raise NotImplementedError
 
 	class State(StateDrivenProcessor.State):
 		pass
 
-	def __init__(self, storage: Storage, state: Optional[State]=None):
+	def __init__(self, storage: Storage, state: Optional[State]=None) -> None:
 		super(StateDrivenOfflineProcessor, self).__init__(
 			storage,
 			state = state or StateDrivenOfflineProcessor._DummyState(),

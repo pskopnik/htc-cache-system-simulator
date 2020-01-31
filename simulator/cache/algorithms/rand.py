@@ -62,15 +62,7 @@ class Rand(StateDrivenOnlineProcessor):
 			self._files.remove(file)
 			self._files_set.remove(file)
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			if ensure and file not in self._files_set:
 				self._files.append(file)
 				self._files_set.add(file)

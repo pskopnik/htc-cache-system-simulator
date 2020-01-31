@@ -7,6 +7,12 @@ from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 KeyType = TypeVar('KeyType')
 ElementType = TypeVar('ElementType')
 
+# Would be great to inherit from OrderedDict for implementation but not
+# inheriting the interface (python/typing#241).
+# Unfortunately it is not possible to re-assign the special (dunder) methods
+# in __init__.
+# Both would speed up implementation.
+# https://github.com/python/typing/issues/241
 
 class LRUStructure(Generic[KeyType, ElementType]):
 	def __init__(self) -> None:
@@ -95,15 +101,7 @@ class LRU(StateDrivenOnlineProcessor):
 		def remove_file(self, file: FileID) -> None:
 			del self._lru[file]
 
-		def process_access(
-			self,
-			file: FileID,
-			ind: int = 0,
-			ensure: bool = True,
-			requested_bytes: int = 0,
-			placed_bytes: int = 0,
-			total_bytes: int = 0,
-		) -> None:
+		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
 			if ensure:
 				self._lru[file] = None
 			self._lru.access(file)
