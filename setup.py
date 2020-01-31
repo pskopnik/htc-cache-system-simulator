@@ -15,6 +15,7 @@ setup(
 	install_requires = [
 		'apq',
 		'bjec',
+		'orjson',
 		'typing-extensions',
 	],
 	entry_points = {
