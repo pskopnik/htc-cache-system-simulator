@@ -1,13 +1,16 @@
 import abc
 from typing import Iterable, Iterator, Optional
-from ..workload import Access, FileID
+
 from .accesses import SimpleAccessReader
-from .processor import AccessInfo, OnlineProcessor, OfflineProcessor
+from .processor import AccessInfo, OfflineProcessor, OnlineProcessor
 from .storage import Storage
+from ..workload import Access, FileID
 
 __all__ = [
+	'Access',
 	'AccessInfo',
 	'FileID',
+	'SimpleAccessReader',
 	'StateDrivenProcessor',
 	'StateDrivenOnlineProcessor',
 	'StateDrivenOfflineProcessor',
