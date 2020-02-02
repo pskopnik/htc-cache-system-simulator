@@ -1,59 +1,8 @@
 from collections import OrderedDict
-from typing import Generic, Iterable, Iterator, Optional, Tuple, TypeVar
+from typing import Iterable, Optional
 
-from ..processor import AccessInfo, Access
-from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
-
-KeyType = TypeVar('KeyType')
-ElementType = TypeVar('ElementType')
-
-# Would be great to inherit from OrderedDict for implementation but not
-# inheriting the interface (python/typing#241).
-# Unfortunately it is not possible to re-assign the special (dunder) methods
-# in __init__.
-# Both would speed up implementation.
-# https://github.com/python/typing/issues/241
-
-class LRUStructure(Generic[KeyType, ElementType]):
-	def __init__(self) -> None:
-		self._odict: OrderedDict[KeyType, ElementType] = OrderedDict()
-
-	def __len__(self) -> int:
-		return len(self._odict)
-
-	def __contains__(self, key: KeyType) -> bool:
-		return key in self._odict
-
-	def __getitem__(self, key: KeyType) -> ElementType:
-		return self._odict[key]
-
-	def __setitem__(self, key: KeyType, el: ElementType) -> None:
-		self._odict[key] = el
-
-	def __delitem__(self, key: KeyType) -> None:
-		del self._odict[key]
-
-	def __iter__(self) -> Iterator[KeyType]:
-		"""Returns an iterator yielding the most recently accessed elements
-		first.
-		"""
-		return iter(self._odict.keys())
-
-	def access(self, key: KeyType) -> None:
-		"""Replicates an element access by moving the element to the front of
-		the LRU structure.
-
-		If ensure is False and the element is not in the structure, a KeyError
-		will be raised.
-		"""
-		self._odict.move_to_end(key, last=False)
-
-	def pop(self) -> Tuple[KeyType, ElementType]:
-		"""Removes the least recently accessed element from the LRU structure.
-
-		Raises a KeyError if there are no elements.
-		"""
-		return self._odict.popitem()
+from ...dstructures.lru import LRUDict
+from ..state import Access, AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 
 
 class LRU(StateDrivenOnlineProcessor):
@@ -70,7 +19,7 @@ class LRU(StateDrivenOnlineProcessor):
 				return self._file
 
 		def __init__(self) -> None:
-			self._lru: LRUStructure[FileID, None] = LRUStructure()
+			self._lru: LRUDict[FileID, None] = LRUDict()
 
 		def pop_eviction_candidates(
 			self,
