@@ -17,10 +17,13 @@ from .cache.processor import Processor, OfflineProcessor
 from .cache.stats import StatsCollector as CacheStatsCollector
 from .cache.storage import Storage
 
-from .cache.algorithms.lru import LRU
-from .cache.algorithms.rand import Rand
+from .cache.algorithms.arc import ARCBit
+from .cache.algorithms.fifo import FIFO
+from .cache.algorithms.greedydual import GreedyDual, Mode as GreedyDualMode
 from .cache.algorithms.landlord import Landlord, Mode as LandlordMode
+from .cache.algorithms.lru import LRU
 from .cache.algorithms.min import MIN
+from .cache.algorithms.rand import Rand
 
 def filter_accesses_stop_early(
 	it: Iterable[AccessAssignment],
@@ -226,14 +229,20 @@ def cache_system_from_args(args: Any) -> CacheSystem:
 		raise NotImplementedError
 
 def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processor], bool, bool]:
-	if args.cache_processor == 'rand':
-		return Rand, True, False
-	elif args.cache_processor == 'lru':
-		return LRU, True, False
+	if args.cache_processor == 'arcbit':
+		return functools.partial(ARCBit, ghosts_factor=1.0), True, False
+	elif args.cache_processor == 'fifo':
+		return FIFO, True, False
+	elif args.cache_processor == 'greedydual':
+		return functools.partial(GreedyDual, mode=GreedyDualMode.TOTAL_SIZE), True, False
 	elif args.cache_processor == 'landlord':
 		return functools.partial(Landlord, mode=LandlordMode.FETCH_SIZE), True, False
+	elif args.cache_processor == 'lru':
+		return LRU, True, False
 	elif args.cache_processor == 'min':
 		return MIN, False, True
+	elif args.cache_processor == 'rand':
+		return Rand, True, False
 	else:
 		raise NotImplementedError
 
