@@ -10,6 +10,6 @@ type-check:
 	$(PIPENV) run mypy --strict -p tests
 
 test:
-	$(PIPENV) run nose2
+	$(PIPENV) run pytest tests
 
 .PHONY: test type-check

@@ -7,7 +7,7 @@ verify_ssl = true
 mypy = "*"
 snakeviz = "*"
 flake8 = "*"
-nose2 = "*"
+pytest = "*"
 
 [packages]
 apq = {path = "./../apq/dist/apq-0.6-cp37-cp37m-linux_x86_64.whl"}
