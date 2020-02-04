@@ -2,16 +2,16 @@ import itertools
 import random
 from typing import Collection
 
-from simulator.dstructures.ordered import KeyOrderedDefaultDict
+from simulator.dstructures.sorted import SortedDefaultDict
 
-def _assert_order(d: KeyOrderedDefaultDict[int, int], els: Collection[int]) -> None:
+def _assert_order(d: SortedDefaultDict[int, int], els: Collection[int]) -> None:
 	assert list(d) == list(els)
 	assert list(d.keys()) == list(els)
 	assert list(d.values()) == list(els)
 	assert list(d.items()) == list(zip(els, els))
 
 def test_key_ordered_default_dict_set() -> None:
-	d: KeyOrderedDefaultDict[int, int] = KeyOrderedDefaultDict(lambda: 0)
+	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
 
 	l = list(range(10))
 	random.shuffle(l)
@@ -22,7 +22,7 @@ def test_key_ordered_default_dict_set() -> None:
 	_assert_order(d, range(10))
 
 def test_key_ordered_default_dict_default_construct() -> None:
-	d: KeyOrderedDefaultDict[int, int] = KeyOrderedDefaultDict(lambda: 0)
+	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
 
 	l = list(range(10))
 	random.shuffle(l)
@@ -34,7 +34,7 @@ def test_key_ordered_default_dict_default_construct() -> None:
 	_assert_order(d, range(10))
 
 def test_key_ordered_default_dict_del() -> None:
-	d: KeyOrderedDefaultDict[int, int] = KeyOrderedDefaultDict(lambda: 0)
+	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
 
 	l = list(range(10))
 	random.shuffle(l)
