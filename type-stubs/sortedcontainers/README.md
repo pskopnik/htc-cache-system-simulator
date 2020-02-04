@@ -7,7 +7,8 @@ request on the repository:
  * https://github.com/grantjenks/python-sortedcontainers/pull/107
 
 The code is copyright Grant Jenks and contributors and licensed under the
-Apache License, Version 2.0.
+Apache License, Version 2.0. Any changes made in this repository are also
+licensed under Apache License, Version 2.0.
 
  * http://www.apache.org/licenses/LICENSE-2.0
 

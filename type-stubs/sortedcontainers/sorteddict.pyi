@@ -27,7 +27,7 @@ _KT = TypeVar("_KT", bound=Hashable)  # Key type.
 _VT = TypeVar("_VT")  # Value type.
 _KT_co = TypeVar("_KT_co", covariant=True, bound=Hashable)
 _VT_co = TypeVar("_VT_co", covariant=True)
-_SD = TypeVar("_SD", bound=SortedDict)
+_SD = TypeVar("_SD", bound=SortedDict[Any, Any])
 _Key = Callable[[_T], Any]
 
 class SortedDict(Dict[_KT, _VT]):

@@ -16,8 +16,8 @@ from typing import (
 )
 
 _T = TypeVar("_T")
-_SL = TypeVar("_SL", bound=SortedList)
-_SKL = TypeVar("_SKL", bound=SortedKeyList)
+_SL = TypeVar("_SL", bound=SortedList[Any])
+_SKL = TypeVar("_SKL", bound=SortedKeyList[Any])
 _Key = Callable[[_T], Any]
 _Repr = Callable[[], str]
 
@@ -81,7 +81,7 @@ class SortedList(MutableSequence[_T]):
         self,
         start: Optional[int] = ...,
         stop: Optional[int] = ...,
-        reverse=bool,
+        reverse: bool = ...,
     ) -> Iterator[_T]: ...
     def _islice(
         self,
@@ -153,14 +153,14 @@ class SortedKeyList(SortedList[_T]):
         maximum: Optional[int] = ...,
         inclusive: Tuple[bool, bool] = ...,
         reverse: bool = ...,
-    ): ...
+    ) -> Iterator[_T]: ...
     def irange_key(
         self,
         min_key: Optional[Any] = ...,
         max_key: Optional[Any] = ...,
         inclusive: Tuple[bool, bool] = ...,
         reserve: bool = ...,
-    ): ...
+    ) -> Iterator[_T]: ...
     def bisect_left(self, value: _T) -> int: ...
     def bisect_right(self, value: _T) -> int: ...
     def bisect(self, value: _T) -> int: ...

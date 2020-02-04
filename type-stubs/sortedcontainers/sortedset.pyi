@@ -22,7 +22,7 @@ from typing import (
 
 _T = TypeVar("_T", bound=Hashable)
 _S = TypeVar("_S", bound=Hashable)
-_SS = TypeVar("_SS", bound=SortedSet)
+_SS = TypeVar("_SS", bound=SortedSet[Any])
 _Key = Callable[[_T], Any]
 
 class SortedSet(MutableSet[_T], Sequence[_T]):
