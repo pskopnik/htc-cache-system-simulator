@@ -1,16 +1,23 @@
 import itertools
 import random
-from typing import Collection
+from typing import Callable, Collection, List, TypeVar
 
 from simulator.dstructures.sorted import SortedDefaultDict
 
-def _assert_order(d: SortedDefaultDict[int, int], els: Collection[int]) -> None:
-	assert list(d) == list(els)
-	assert list(d.keys()) == list(els)
-	assert list(d.values()) == list(els)
-	assert list(d.items()) == list(zip(els, els))
+_KT = TypeVar('_KT')
+_VT = TypeVar('_VT')
 
-def test_key_ordered_default_dict_set() -> None:
+def _assert_order(
+	d: SortedDefaultDict[_KT, _VT],
+	keys: Collection[_KT],
+	val_func: Callable[[_KT], _VT],
+) -> None:
+	assert list(d) == list(keys)
+	assert list(d.keys()) == list(keys)
+	assert list(d.values()) == list(map(val_func, keys))
+	assert list(d.items()) == list(zip(keys, map(val_func, keys)))
+
+def test_sorted_default_dict_set() -> None:
 	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
 
 	l = list(range(10))
@@ -19,21 +26,20 @@ def test_key_ordered_default_dict_set() -> None:
 	for el in l:
 		d[el] = el
 
-	_assert_order(d, range(10))
+	_assert_order(d, range(10), lambda x: x)
 
-def test_key_ordered_default_dict_default_construct() -> None:
-	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
+def test_sorted_default_dict_default_construct() -> None:
+	d: SortedDefaultDict[int, List[int]] = SortedDefaultDict(list)
 
 	l = list(range(10))
 	random.shuffle(l)
 
 	for el in l:
-		d[el] += el
+		d[el].append(el)
 
-	print(list(d))
-	_assert_order(d, range(10))
+	_assert_order(d, range(10), lambda x: [x])
 
-def test_key_ordered_default_dict_del() -> None:
+def test_sorted_default_dict_del() -> None:
 	d: SortedDefaultDict[int, int] = SortedDefaultDict(lambda: 0)
 
 	l = list(range(10))
@@ -45,4 +51,4 @@ def test_key_ordered_default_dict_del() -> None:
 	for el in range(5):
 		del d[el]
 
-	_assert_order(d, range(5, 10))
+	_assert_order(d, range(5, 10), lambda x: x)
