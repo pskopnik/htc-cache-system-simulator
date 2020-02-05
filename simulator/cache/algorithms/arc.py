@@ -313,7 +313,7 @@ class ARCBit(StateDrivenOnlineProcessor):
 		self,
 		storage: Storage,
 		state: Optional[State] = None,
-		ghosts_factor: float = 5.0,
+		ghosts_factor: float = 1.0,
 	) -> None:
 		self._ghosts_factor = ghosts_factor
 		super(ARCBit, self).__init__(storage, state=state)
