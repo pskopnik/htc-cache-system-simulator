@@ -1,5 +1,5 @@
 import itertools
-import pytest # type: ignore
+import pytest # type: ignore[import]
 import random
 from typing import cast, List
 
@@ -67,7 +67,7 @@ def test_log_binner_basics() -> None:
 	b = LogBinner(first=5, last=8, step=4)
 	_assert_binner_equals(b, [0])
 
-@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore
+@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
 def test_log_binner_bounded(step: int) -> None:
 	b = LogBinner(first=10, last=40, step=step)
 
@@ -83,7 +83,7 @@ def test_log_binner_bounded(step: int) -> None:
 		num *= 2 ** step
 		assert b(num) == old_bin + 1
 
-@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore
+@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
 def test_log_binner_unbounded(step: int) -> None:
 	b = LogBinner(first=10, step=step)
 
@@ -115,8 +115,11 @@ def test_none_binner() -> None:
 # Following is an implementation of test_log_binner_unbounded and
 # test_none_binner using a parametrised fixture.
 
-@pytest.fixture(params=[ # type: ignore
-	(LogBinner, (1,), {}), # type: ignore
+# TODO: mypy error
+# Function is missing a type annotation for one or more arguments [no-untyped-def]
+
+@pytest.fixture(params=[ # type: ignore[misc]
+	(LogBinner, (1,), {}), # type: ignore[no-untyped-def]
 	(LogBinner, (2,), {}),
 	(LogBinner, (3,), {}),
 	(LogBinner, (4,), {}),

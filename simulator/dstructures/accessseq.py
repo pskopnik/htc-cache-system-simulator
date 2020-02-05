@@ -48,11 +48,9 @@ class ReuseTimer(object):
 		for ind, reuse_ind in enumerate(self._reuse_ind):
 			file = accesses[ind].file
 			for i in range(ind + 1, reuse_ind):
-				if accesses[i].file == file:
-					raise Exception('Found earlier reuse ind', ind, i, reuse_ind, file)
+				assert accesses[i].file != file, 'found earlier reuse ind'
 			if reuse_ind != len(self._reuse_ind):
-				if accesses[reuse_ind].file != file:
-					raise Exception('Invalid reuse ind', reuse_ind, file)
+				assert accesses[reuse_ind].file == file, 'invalid reuse ind'
 
 	@staticmethod
 	def _build_reuse_ind(accesses: SimpleAccessReader) -> 'array[int]':
