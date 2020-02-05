@@ -4,8 +4,6 @@ from typing import Any, cast, Deque, Generator, Iterable, Iterator, List, Option
 from ..workload import Access, TimeStamp
 from .accesses import SimpleAccessReader
 
-__all__ = ['Access']
-
 
 class AccessInfo(object):
 	__slots__ = [

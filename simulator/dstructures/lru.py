@@ -3,8 +3,8 @@ from typing import Generic, Iterator, Tuple, TypeVar
 
 from ..workload import FileID
 
-KeyType = TypeVar('KeyType')
-ElementType = TypeVar('ElementType')
+_KeyType = TypeVar('_KeyType')
+_ElementType = TypeVar('_ElementType')
 
 # Would be great to inherit from OrderedDict for implementation but not
 # inheriting the interface (python/typing#241).
@@ -13,32 +13,32 @@ ElementType = TypeVar('ElementType')
 # Both would speed up implementation.
 # https://github.com/python/typing/issues/241
 
-class LRUDict(Generic[KeyType, ElementType]):
+class LRUDict(Generic[_KeyType, _ElementType]):
 	def __init__(self) -> None:
-		self._odict: OrderedDict[KeyType, ElementType] = OrderedDict()
+		self._odict: OrderedDict[_KeyType, _ElementType] = OrderedDict()
 
 	def __len__(self) -> int:
 		return len(self._odict)
 
-	def __contains__(self, key: KeyType) -> bool:
+	def __contains__(self, key: _KeyType) -> bool:
 		return key in self._odict
 
-	def __getitem__(self, key: KeyType) -> ElementType:
+	def __getitem__(self, key: _KeyType) -> _ElementType:
 		return self._odict[key]
 
-	def __setitem__(self, key: KeyType, el: ElementType) -> None:
+	def __setitem__(self, key: _KeyType, el: _ElementType) -> None:
 		self._odict[key] = el
 
-	def __delitem__(self, key: KeyType) -> None:
+	def __delitem__(self, key: _KeyType) -> None:
 		del self._odict[key]
 
-	def __iter__(self) -> Iterator[KeyType]:
+	def __iter__(self) -> Iterator[_KeyType]:
 		"""Returns an iterator yielding the most recently accessed elements
 		first.
 		"""
 		return iter(self._odict.keys())
 
-	def access(self, key: KeyType) -> None:
+	def access(self, key: _KeyType) -> None:
 		"""Replicates an element access by moving the element to the front of
 		the LRU structure.
 
@@ -47,7 +47,7 @@ class LRUDict(Generic[KeyType, ElementType]):
 		"""
 		self._odict.move_to_end(key, last=False)
 
-	def pop(self) -> Tuple[KeyType, ElementType]:
+	def pop(self) -> Tuple[_KeyType, _ElementType]:
 		"""Removes the least recently accessed element from the LRU structure.
 
 		Raises a KeyError if there are no elements.

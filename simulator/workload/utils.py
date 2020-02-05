@@ -5,12 +5,12 @@ from typing import Any, Callable, cast, Iterable, Iterator, Optional, TypeVar
 from . import Job, Submitter, TimeStamp
 
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
-def ignore_args(f: Callable[[], T]) -> Callable[..., T]:
+def ignore_args(f: Callable[[], _T]) -> Callable[..., _T]:
 	"""Returns a function which calls f while dropping all received arguments.
 	"""
-	def _inner(*args: Any, **kwargs: Any) -> T:
+	def _inner(*args: Any, **kwargs: Any) -> _T:
 		return f()
 
 	return _inner
@@ -26,7 +26,7 @@ def callback_iterable(cb: Callable[[], None]) -> Iterator[Any]:
 	"""
 	return filter(lambda _: False, map(ignore_args(cb), [None]))
 
-def repeat_each(it: Iterable[T], n: int) -> Iterator[T]:
+def repeat_each(it: Iterable[_T], n: int) -> Iterator[_T]:
 	"""Returns an iterator which repeats each element of it n times.
 	"""
 	return itertools.chain.from_iterable(itertools.repeat(el, n) for el in it)
@@ -42,7 +42,7 @@ def consume(it: Iterable[Any], n: Optional[int]=None) -> None:
 	else:
 		next(itertools.islice(it, n, n), None)
 
-def accumulate_initial(iterable: Iterable[T], func: Callable[[T, T], T], initial: Optional[T]=None) -> Iterator[T]:
+def accumulate_initial(iterable: Iterable[_T], func: Callable[[_T, _T], _T], initial: Optional[_T]=None) -> Iterator[_T]:
 	"""Like itertools.accumulate but yields initial first, if not None.
 	"""
 	initial_it = [initial] if initial is not None else []

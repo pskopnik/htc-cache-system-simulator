@@ -1,8 +1,7 @@
 from typing import Iterable, List, Optional, Set
 import random
 
-from ..processor import AccessInfo, Access
-from ..state import FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
+from ..state import Access, AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
 
 
 class Rand(StateDrivenOnlineProcessor):

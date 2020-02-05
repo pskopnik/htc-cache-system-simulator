@@ -73,9 +73,9 @@ class AccessSequence(abc.ABC, Sequence[Access]):
 		raise NotImplementedError
 
 
-T = TypeVar('T', covariant=True)
+_T_co = TypeVar('_T_co', covariant=True)
 
-class SimpleReader(Reversible[T], Iterable[T], Sized, Protocol[T]):
+class SimpleReader(Reversible[_T_co], Iterable[_T_co], Sized, Protocol[_T_co]):
 	pass
 
 

@@ -3,8 +3,7 @@ from dataclasses import dataclass, field
 from enum import auto, Enum
 from typing import Iterable, Optional
 
-from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor
-from ..storage import Storage
+from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
 
 
 class Mode(Enum):

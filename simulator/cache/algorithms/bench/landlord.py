@@ -13,13 +13,13 @@ base_length = 10000
 active_file_factor = 10
 file_size = 1000
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
-def init_state(col: T, extend: Optional[Callable[[T], Callable[[Iterable[str]], None]]]=None) -> Tuple[T, StringSource]:
+def init_state(col: _T, extend: Optional[Callable[[_T], Callable[[Iterable[str]], None]]]=None) -> Tuple[_T, StringSource]:
 	s = StringSource()
 
 	if extend is None:
-		extend = cast(Callable[[T], Callable[[Iterable[str]], None]], lambda c: c.extend)
+		extend = cast(Callable[[_T], Callable[[Iterable[str]], None]], lambda c: c.extend)
 
 	extend(col)(s.take(base_length))
 
