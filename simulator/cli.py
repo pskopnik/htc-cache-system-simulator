@@ -22,8 +22,12 @@ from .cache.algorithms.fifo import FIFO
 from .cache.algorithms.greedydual import GreedyDual, Mode as GreedyDualMode
 from .cache.algorithms.landlord import Landlord, Mode as LandlordMode
 from .cache.algorithms.lru import LRU
+from .cache.algorithms.mcf import MCF
 from .cache.algorithms.min import MIN
+from .cache.algorithms.mind import MIND, MINCod
+from .cache.algorithms.obma import OBMA
 from .cache.algorithms.rand import Rand
+from .cache.algorithms.size import Size
 
 def filter_accesses_stop_early(
 	it: Iterable[AccessAssignment],
@@ -239,10 +243,20 @@ def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processo
 		return functools.partial(Landlord, mode=LandlordMode.FETCH_SIZE), True, False
 	elif args.cache_processor == 'lru':
 		return LRU, True, False
+	elif args.cache_processor == 'mcf':
+		return MCF, True, False
 	elif args.cache_processor == 'min':
 		return MIN, False, True
+	elif args.cache_processor == 'mincod':
+		return functools.partial(MINCod, MINCod.Configuration()), False, True
+	elif args.cache_processor == 'mind':
+		return functools.partial(MIND, MIND.Configuration(0.05, min_d=5, max_d=100)), False, True
+	elif args.cache_processor == 'obma':
+		return functools.partial(OBMA, OBMA.Configuration()), False, True
 	elif args.cache_processor == 'rand':
 		return Rand, True, False
+	elif args.cache_processor == 'size':
+		return Size, True, False
 	else:
 		raise NotImplementedError
 
