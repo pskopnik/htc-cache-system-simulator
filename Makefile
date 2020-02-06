@@ -6,8 +6,8 @@ else
 endif
 
 type-check:
-	$(PIPENV) run mypy -p simulator
-	$(PIPENV) run mypy -p tests
+	$(PIPENV) run mypy src/simulator
+	$(PIPENV) run mypy tests
 
 test:
 	$(PIPENV) run pytest tests

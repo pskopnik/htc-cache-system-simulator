@@ -11,7 +11,10 @@ setup(
 	author_email = "paul@skopnik.me",
 	long_description = long_description,
 	long_description_content_type = 'text/markdown',
-	packages = find_packages(),
+	package_data = {'simulator': ['py.typed']},
+	packages = find_packages('src'),
+	package_dir = {'': 'src'},
+	zip_safe = False,
 	install_requires = [
 		'apq',
 		'bjec',
