@@ -16,7 +16,7 @@ setup(
 	package_dir = {'': 'src'},
 	zip_safe = False,
 	install_requires = [
-		'apq',
+		'apq >= 0.10.0, < 0.20.0',
 		'bjec',
 		'orjson',
 		'typing-extensions',
