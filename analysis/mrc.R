@@ -6,7 +6,25 @@ library(scales)
 function() {
 	source("./plot.R")
 
-	d <- read_csv("two_years_eval.csv") %>%
+	d <- read_stats("two_years_eval.csv")
+
+	width <- 8
+	height <- 5
+
+	plot_miss_rate_curve(d)
+
+	ggsave("two_years_mrc.pdf", width=width, height=height)
+
+	plot_byte_miss_rate_curve(d)
+
+	ggsave("two_years_bmrc.pdf", width=width, height=height)
+}
+
+format_bytes <- label_bytes(units="auto_binary", accuracy=0.1)
+format_si <- label_number_si(accuracy=0.1)
+
+read_stats <- function(filename) {
+	read_csv(filename) %>%
 		mutate(
 			theoretical_best_hit_rate = (accesses - files) / accesses,
 			theoretical_best_miss_rate = files / accesses,
@@ -18,31 +36,14 @@ function() {
 			byte_miss_rate = bytes_missed / total_bytes_accessed,
 			storage_bytes = storage_size * 1024 * 1024 * 1024
 		)
+}
 
-	width <- 8
-	height <- 5
+plot_miss_rate_curve <- function(d) {
+	# Uses globals: format_bytes
 
-	accesses <- d %>% slice(1) %>% pull(accesses)
-	files <- d %>% slice(1) %>% pull(files)
-	total_bytes_accessed <- d %>% slice(1) %>% pull(total_bytes_accessed)
-	unique_bytes_accessed <- d %>% slice(1) %>% pull(unique_bytes_accessed)
+	caption_text <- get_caption(d)
+
 	theoretical_best_miss_rate <- d %>% slice(1) %>% pull(theoretical_best_miss_rate)
-	theoretical_best_byte_miss_rate <- d %>% slice(1) %>% pull(theoretical_best_byte_miss_rate)
-
-	format_bytes <- label_bytes(units="auto_binary", accuracy=0.1)
-	format_si <- label_number_si(accuracy=0.1)
-
-	caption_text <- paste(
-		format_bytes(total_bytes_accessed),
-		" accessed in ",
-		format_si(accesses),
-		" accesses (",
-		format_bytes(unique_bytes_accessed),
-		" unique bytes in ",
-		format_si(files),
-		" files).",
-		sep=""
-	)
 
 	d %>%
 		ggplot() +
@@ -56,8 +57,14 @@ function() {
 				colour = "Algorithm",
 				caption = caption_text
 			)
+}
 
-	ggsave("two_years_mrc.pdf", width=width, height=height)
+plot_byte_miss_rate_curve <- function(d) {
+	# Uses globals: format_bytes
+
+	caption_text <- get_caption(d)
+
+	theoretical_best_byte_miss_rate <- d %>% slice(1) %>% pull(theoretical_best_byte_miss_rate)
 
 	d %>%
 		ggplot() +
@@ -71,6 +78,25 @@ function() {
 				colour = "Algorithm",
 				caption = caption_text
 			)
+}
 
-	ggsave("two_years_bmrc.pdf", width=width, height=height)
+get_caption <- function(d) {
+	# Uses globals: format_bytes, format_si
+
+	accesses <- d %>% slice(1) %>% pull(accesses)
+	files <- d %>% slice(1) %>% pull(files)
+	total_bytes_accessed <- d %>% slice(1) %>% pull(total_bytes_accessed)
+	unique_bytes_accessed <- d %>% slice(1) %>% pull(unique_bytes_accessed)
+
+	paste(
+		format_bytes(total_bytes_accessed),
+		" accessed in ",
+		format_si(accesses),
+		" accesses (",
+		format_bytes(unique_bytes_accessed),
+		" unique bytes in ",
+		format_si(files),
+		" files).",
+		sep=""
+	)
 }
