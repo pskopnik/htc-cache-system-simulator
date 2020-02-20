@@ -1,4 +1,4 @@
-from apq import KeyedPQ, Item
+from apq import KeyedPQ
 from typing import Iterable, Optional
 
 from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage

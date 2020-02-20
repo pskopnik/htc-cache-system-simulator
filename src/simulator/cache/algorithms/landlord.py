@@ -1,4 +1,4 @@
-from apq import KeyedPQ, Item
+from apq import KeyedItem, KeyedPQ
 from dataclasses import dataclass, field
 from enum import auto, Enum
 from typing import Iterable, Optional
@@ -103,7 +103,7 @@ class Landlord(StateDrivenOnlineProcessor):
 			del self._pq[file]
 
 		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
-			it: Optional[Item[Landlord.State._FileInfo]]
+			it: Optional[KeyedItem[Landlord.State._FileInfo]]
 			current_credit: float
 			try:
 				it = self._pq[file]

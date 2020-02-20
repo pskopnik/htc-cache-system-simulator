@@ -1,4 +1,4 @@
-from apq import Item, KeyedPQ
+from apq import KeyedItem, KeyedPQ
 from dataclasses import dataclass, field
 import functools
 import itertools
@@ -196,7 +196,7 @@ class MINCod(StateDrivenOfflineProcessor):
 			)
 
 		def _pop_eviction_candidate_using_classes(self) -> FileID:
-			min_item: Optional[Item[MINCod.State._FileInfo]] = None
+			min_item: Optional[KeyedItem[MINCod.State._FileInfo]] = None
 			min_pq: Optional[KeyedPQ[MINCod.State._FileInfo]] = None
 			min_cod: Union[int, float] = math.inf
 
@@ -245,7 +245,7 @@ class MINCod(StateDrivenOfflineProcessor):
 			return file
 
 		def _pop_eviction_candidate_using_sorted_dict(self) -> FileID:
-			min_item: Optional[Item[MINCod.State._FileInfo]] = None
+			min_item: Optional[KeyedItem[MINCod.State._FileInfo]] = None
 			min_pq_cost: Optional[int] = None
 			min_pq: Optional[KeyedPQ[MINCod.State._FileInfo]] = None
 			min_cod: Union[int, float] = math.inf

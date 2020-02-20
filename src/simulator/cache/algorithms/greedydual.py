@@ -1,4 +1,4 @@
-from apq import KeyedPQ, Item
+from apq import KeyedItem, KeyedPQ
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Iterable, Optional
@@ -91,7 +91,7 @@ class GreedyDual(StateDrivenOnlineProcessor):
 				raise NotImplementedError
 
 		def _process_access_access_size(self, file: FileID, requested_bytes: int) -> None:
-			it: Optional[Item[GreedyDual.State._FileInfo]]
+			it: Optional[KeyedItem[GreedyDual.State._FileInfo]]
 			current_credit: float
 			try:
 				it = self._pq[file]
