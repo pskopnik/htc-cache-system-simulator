@@ -1,7 +1,7 @@
 import itertools
 import pytest # type: ignore[import]
 import random
-from typing import cast, List
+from typing import cast, Iterable, Iterator, List, TypeVar
 
 from simulator.dstructures.binning import (
 	BinnedMapping,
@@ -10,6 +10,19 @@ from simulator.dstructures.binning import (
 	LogBinner,
 	NoneBinner,
 )
+
+_T = TypeVar('_T')
+
+def random_bin_nums(binner: Binner, past_size: int=10000, n: int=-1) -> Iterator[int]:
+	it: Iterable[int]
+	if not binner.bounded and n == -1:
+		it = itertools.count()
+	else:
+		it = range(min(filter(lambda x: x != -1, [binner.bins, n])))
+
+	for i in it:
+		first, past = binner.bin_limits(i)
+		yield random.randrange(first, past if past != -1 else first + past_size)
 
 def _assert_binner_equals(binner: Binner, edges: List[int]) -> None:
 	assert binner.bins == len(edges)
@@ -159,12 +172,12 @@ def test_bounded_binned_mapping() -> None:
 	assert list(m.keys()) == list(b.bin_edges())
 
 	# set-up: append edge value to each bin
-	for edge in b.bin_edges():
-		m[edge].append(edge)
+	for edge, num in zip(b.bin_edges(), random_bin_nums(b)):
+		m[num].append(edge)
 
 	# test __getitem__()
-	for edge in b.bin_edges():
-		assert m[edge] == [edge]
+	for edge, num in zip(b.bin_edges(), random_bin_nums(b)):
+		assert m[num] == [edge]
 
 	# test items()
 	assert list(m.items()) == list(zip(b.bin_edges(), map(lambda edge: [edge], b.bin_edges())))
@@ -196,7 +209,7 @@ def test_bounded_binned_mapping() -> None:
 		map(lambda edge: [edge], itertools.islice(b.bin_edges(), from_bin + 1, None)),
 	)
 	assert list(m.values_from(from_num, half_open=False)) == list(
-		map(lambda edge: [edge], itertools.islice(b.bin_edges(), from_bin, None,)),
+		map(lambda edge: [edge], itertools.islice(b.bin_edges(), from_bin, None)),
 	)
 
 	# test bin_limits()
@@ -207,6 +220,88 @@ def test_bounded_binned_mapping() -> None:
 	for bin, edge in enumerate(b.bin_edges()):
 		assert m.bin_limits_from_num(edge) == b.bin_limits(bin)
 
+def test_unbounded_binned_mapping() -> None:
+	b = LogBinner(first=10, step=1)
+	m: BinnedMapping[List[int]] = BinnedMapping(b, list)
+
+	check_count = 20
+
+	def sl(it: Iterable[_T], n: int=-1, sub: int=0) -> Iterable[_T]:
+		if n == -1:
+			n = check_count
+
+		n -= sub
+
+		return itertools.islice(it, n)
+
+	# test binner
+	assert m.binner is b
+
+	# test bounded
+	assert b.bounded == False
+
+	# test __len__()
+	with pytest.raises(TypeError):
+		assert len(m) == b.bins
+
+	# test __iter__()
+	assert list(sl(m)) == list(sl(b.bin_edges()))
+
+	# test keys()
+	assert list(sl(m.keys())) == list(sl(b.bin_edges()))
+
+	# set-up: append edge value to each bin
+	for edge, num in zip(b.bin_edges(), random_bin_nums(b, n=check_count)):
+		m[num].append(edge)
+
+	# test __getitem__()
+	for edge, num in zip(b.bin_edges(), random_bin_nums(b, n=check_count)):
+		assert m[num] == [edge]
+
+	# test items()
+	assert (
+			list(sl(m.items()))
+		==
+			list(zip(b.bin_edges(), sl(map(lambda edge: [edge], b.bin_edges()))))
+	)
+
+	# test values()
+	assert list(sl(m.values())) == list(sl(map(lambda edge: [edge], b.bin_edges())))
+
+	# test __getitem__() resolving correctly for bin limits
+	for bin in range(check_count):
+		first, past = b.bin_limits(bin)
+		if past == -1:
+			continue
+		assert m[first] is m[past - 1]
+
+	# test values_until()
+	until_bin = check_count // 2
+	until_num = b.bin_limits(until_bin)[0]
+	assert list(m.values_until(until_num, half_open=True)) == list(
+		map(lambda edge: [edge], itertools.islice(b.bin_edges(), until_bin)),
+	)
+	assert list(m.values_until(until_num, half_open=False)) == list(
+		map(lambda edge: [edge], itertools.islice(b.bin_edges(), until_bin + 1)),
+	)
+
+	# test values_from()
+	from_bin = check_count // 2
+	from_num = b.bin_limits(from_bin)[0]
+	assert list(sl(m.values_from(from_num, half_open=True), sub=from_bin + 1)) == list(
+		map(lambda edge: [edge], itertools.islice(b.bin_edges(), from_bin + 1, check_count)),
+	)
+	assert list(sl(m.values_from(from_num, half_open=False), sub=from_bin)) == list(
+		map(lambda edge: [edge], itertools.islice(b.bin_edges(), from_bin, check_count)),
+	)
+
+	# test bin_limits()
+	for bin in range(check_count):
+		assert m.bin_limits(bin) == b.bin_limits(bin)
+
+	# test bin_limits_from_num()
+	for bin, edge in enumerate(sl(b.bin_edges())):
+		assert m.bin_limits_from_num(edge) == b.bin_limits(bin)
 
 def test_unbounded_binned_sparse_mapping() -> None:
 	b = LogBinner(first=10, step=1)
