@@ -4,7 +4,7 @@ library(ggplot2)
 library(scales)
 
 function() {
-	source("./plot.R")
+	source("./mrc.R")
 
 	d <- read_stats("two_years_eval.csv")
 
