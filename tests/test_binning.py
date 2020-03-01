@@ -38,10 +38,10 @@ def _assert_binning(binner: Binner, min: int, max: int, n: int=1000) -> None:
 	for num in (random.randrange(min, max) for _ in range(n)):
 		bin = binner(num)
 		assert bin >= 0
-		assert binner.bins == -1 or bin < binner.bins
+		assert not binner.bounded or bin < binner.bins
 		bin_first, bin_past = binner.bin_limits(bin)
 		assert num >= bin_first
-		assert bin_past == -1 or num < bin_past
+		assert binner.bounded or num < bin_past
 
 def test_log_binner_basics() -> None:
 
@@ -68,10 +68,11 @@ def test_log_binner_basics() -> None:
 	_assert_binner_equals(b, [0])
 
 @pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
-def test_log_binner_bounded(step: int) -> None:
+def test_bounded_log_binner(step: int) -> None:
 	b = LogBinner(first=10, last=40, step=step)
 
 	assert b.bins > 0
+	assert b.bounded == True
 
 	_assert_bin_limits(b, b.bins)
 	_assert_bin_edges(b, b.bins)
@@ -84,10 +85,11 @@ def test_log_binner_bounded(step: int) -> None:
 		assert b(num) == old_bin + 1
 
 @pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
-def test_log_binner_unbounded(step: int) -> None:
+def test_unbounded_log_binner(step: int) -> None:
 	b = LogBinner(first=10, step=step)
 
 	assert b.bins == -1
+	assert b.bounded == False
 
 	_assert_bin_limits(b, 1000)
 	_assert_bin_edges(b, 1000)
@@ -103,6 +105,7 @@ def test_none_binner() -> None:
 	b = NoneBinner()
 
 	assert b.bins == -1
+	assert b.bounded == False
 
 	_assert_bin_limits(b, 1000)
 	_assert_bin_edges(b, 1000)
@@ -130,14 +133,21 @@ def unbounded_binner(request) -> Binner:
 
 def test_unbounded_binner(unbounded_binner: Binner) -> None:
 	assert unbounded_binner.bins == -1
+	assert unbounded_binner.bounded == False
 
 	_assert_bin_limits(unbounded_binner, 1000)
 	_assert_bin_edges(unbounded_binner, 1000)
 	_assert_binning(unbounded_binner, 0, 2 ** 45)
 
 def test_bounded_binned_mapping() -> None:
-	m: BinnedMapping[List[int]] = BinnedMapping(LogBinner(first=10, last=20, step=1), list)
-	b = m.binner
+	b = LogBinner(first=10, last=20, step=1)
+	m: BinnedMapping[List[int]] = BinnedMapping(b, list)
+
+	# test binner
+	assert m.binner is b
+
+	# test bounded
+	assert b.bounded == True
 
 	# test __len__()
 	assert len(m) == b.bins
@@ -197,9 +207,16 @@ def test_bounded_binned_mapping() -> None:
 	for bin, edge in enumerate(b.bin_edges()):
 		assert m.bin_limits_from_num(edge) == b.bin_limits(bin)
 
+
 def test_unbounded_binned_sparse_mapping() -> None:
-	m: BinnedSparseMapping[List[int]] = BinnedSparseMapping(LogBinner(first=10, step=1), list)
-	b = m.binner
+	b = LogBinner(first=10, step=1)
+	m: BinnedSparseMapping[List[int]] = BinnedSparseMapping(b, list)
+
+	# test binner
+	assert m.binner is b
+
+	# test bounded
+	assert b.bounded == False
 
 	# empty mapping
 

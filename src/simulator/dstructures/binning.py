@@ -10,6 +10,11 @@ from .sorted import SortedDefaultDict
 class Binner(abc.ABC):
 	@property
 	@abc.abstractmethod
+	def bounded(self) -> bool:
+		raise NotImplementedError
+
+	@property
+	@abc.abstractmethod
 	def bins(self) -> int:
 		raise NotImplementedError
 
@@ -27,6 +32,10 @@ class Binner(abc.ABC):
 
 
 class NoneBinner(Binner):
+	@property
+	def bounded(self) -> bool:
+		return False
+
 	@property
 	def bins(self) -> int:
 		return -1
@@ -54,6 +63,10 @@ class LogBinner(Binner):
 			self._bin = lambda num: (max(num.bit_length() - 1, first) - first) // step
 		else:
 			self._bin = lambda num: (min(max(num.bit_length() - 1, first), last) - first) // step
+
+	@property
+	def bounded(self) -> bool:
+		return self._last != -1
 
 	@property
 	def bins(self) -> int:
@@ -111,18 +124,17 @@ class BinnedMapping(Generic[_T_co], Mapping[int, _T_co]):
 
 		def __iter__(self) -> Iterator[Tuple[int, _T_co_inner]]:
 			container = self._mapping._container
-			binner = self._mapping._binner
 			cnst_get_el = self._mapping._construct_or_get_element
 			if self._mapping._binner.bins == -1:
 				return zip(
-					binner.bin_edges(),
+					self._mapping._binner.bin_edges(),
 					itertools.chain(
 						container,
 						(cnst_get_el(i) for i in itertools.count(len(container))),
 					),
 				)
 			else:
-				return zip(binner.bin_edges(), container)
+				return zip(self._mapping._binner.bin_edges(), container)
 
 	def __init__(
 		self,
@@ -157,6 +169,10 @@ class BinnedMapping(Generic[_T_co], Mapping[int, _T_co]):
 		return self._binner
 
 	@property
+	def bounded(self) -> bool:
+		return self._binner.bounded
+
+	@property
 	def default_factory(self) -> Callable[[], _T_co]:
 		return self._default_factory
 
@@ -167,7 +183,10 @@ class BinnedMapping(Generic[_T_co], Mapping[int, _T_co]):
 		return self._binner.bin_edges()
 
 	def __len__(self) -> int:
-		return self._binner.bins
+		if self._binner.bounded:
+			return self._binner.bins
+		else:
+			raise TypeError('The BinnedMapping is unbounded, len(.) is undefined')
 
 	def items(self) -> 'BinnedMapping._ItemSet[_T_co]':
 		return BinnedMapping._ItemSet(self)
@@ -215,6 +234,10 @@ class BinnedSparseMapping(Generic[_T_co], Mapping[int, _T_co]):
 	@property
 	def binner(self) -> Binner:
 		return self._binner
+
+	@property
+	def bounded(self) -> bool:
+		return self._binner.bounded
 
 	@property
 	def default_factory(self) -> Callable[[], _T_co]:
