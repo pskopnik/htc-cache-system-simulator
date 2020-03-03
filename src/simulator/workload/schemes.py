@@ -3,15 +3,21 @@ from . import AccessScheme, FileID, PartSpec, PartsGenerator
 
 
 class NonCorrelatedSchemesGenerator(object):
-	def __init__(self, number: int):
-		self.number = number
+	def __init__(self, number: int, fraction: float):
+		self._number = number
+		self._fraction = fraction
 		self._parts_number = 2 ** number
 
-	def parts(self, index: int, total_bytes: int) -> List[PartSpec]:
-		scheme_parts_number = 2 ** (self.number - 1)
+	@property
+	def number(self) -> int:
+		return self._number
 
-		min_part_bytes = total_bytes // scheme_parts_number
-		additional_bytes = total_bytes % scheme_parts_number
+	@property
+	def fraction(self) -> float:
+		return self._fraction
+
+	def parts(self, index: int, total_bytes: int) -> List[PartSpec]:
+		scheme_parts_number = 2 ** (self._number - 1)
 
 		parts: List[PartSpec] = []
 
@@ -20,9 +26,12 @@ class NonCorrelatedSchemesGenerator(object):
 			# Insert 1 bit at index into binary representation of i
 			part_index = (((i << 1 >> index) | 1) << index) | (i & ((1 << index) - 1))
 
-			part_bytes = min_part_bytes
-			if i < additional_bytes:
-				part_bytes += 1
+			containing_schemes = bin(part_index).count('1')
+			part_bytes = round(total_bytes * (
+					self._fraction ** containing_schemes
+						*
+					(1 - self._fraction) ** (self._number - containing_schemes)
+			))
 
 			parts.append((part_index, part_bytes))
 

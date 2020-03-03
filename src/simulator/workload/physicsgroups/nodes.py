@@ -184,13 +184,11 @@ class PassiveNode(Node):
 class PhysicsProcessingModel(object):
 	def __init__(
 		self,
-		read_fraction: float,
 		parts_generator: PartsGenerator,
 		job_read_size: int,
 		output_fraction: float,
 		output_file_size: int,
 	):
-		self.read_fraction: float = read_fraction
 		self.parts_generator: PartsGenerator = parts_generator # parts generator is specific to a single node in this simulation
 		self.job_read_size: int = job_read_size
 		self.output_fraction: float = output_fraction
@@ -206,7 +204,6 @@ class PhysicsProcessingModel(object):
 
 		submitter_scaffold = DataSetSubmitter.scaffold(
 			input_data_set,
-			self.read_fraction,
 			self.parts_generator,
 			self.job_read_size,
 			origin = origin,

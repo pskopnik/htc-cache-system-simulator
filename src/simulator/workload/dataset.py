@@ -232,12 +232,12 @@ class DataSetSubmitter(Submitter):
 	def scaffold(
 		cls,
 		data_set: DataSet,
-		read_fraction: float,
 		parts_gen: PartsGenerator,
 		job_read_size: int,
 		origin: Optional[Any] = None,
 	) -> Scaffold:
-		file_size_read = math.floor(data_set.file_size * read_fraction)
+		parts = parts_gen.parts(data_set.file_size)
+		file_size_read = sum(part[1] for part in parts)
 		# Each job reads a maximum of job_read_size bytes
 		files_per_job = job_read_size // file_size_read # implicit floor
 		if files_per_job < 1:
@@ -245,7 +245,6 @@ class DataSetSubmitter(Submitter):
 				f'Attempting to scaffold a DataSetSubmitter which would read not a single file ' +
 				f'per job, job_read_size={job_read_size}, file_size_read={file_size_read}'
 			)
-		parts = parts_gen.parts(file_size_read)
 		return cls.Scaffold(data_set, parts, files_per_job, origin=origin)
 
 

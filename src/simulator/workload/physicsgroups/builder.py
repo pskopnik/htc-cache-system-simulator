@@ -52,9 +52,10 @@ def build_physics_groups() -> List[Node]:
 
 	for skim_parent in grid_layer:
 		no_of_children = 7
+		read_fraction = 0.2
 
 		channels = itertools.tee(skim_parent.update_channel(), no_of_children)
-		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children)
+		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children, read_fraction)
 
 		for i, channel in enumerate(channels):
 			node = ComputingNode(
@@ -68,7 +69,6 @@ def build_physics_groups() -> List[Node]:
 				),
 				skim_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
-					0.2, # read_fraction
 					schemes_generator.with_index(i), # parts_generator
 					1 * GB, # job_read_size
 					0.1, # output_fraction
@@ -82,8 +82,9 @@ def build_physics_groups() -> List[Node]:
 
 	for calib_parent in skim_layer:
 		no_of_children = 2
+		read_fraction = 0.8
 
-		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children)
+		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children, read_fraction)
 
 		for i in range(no_of_children):
 			node = ComputingNode(
@@ -96,7 +97,6 @@ def build_physics_groups() -> List[Node]:
 				),
 				calib_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
-					0.8, # read_fraction
 					schemes_generator.with_index(i), # parts_generator
 					1 * GB, # job_read_size
 					0.05, # output_fraction
