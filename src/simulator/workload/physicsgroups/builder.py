@@ -70,7 +70,7 @@ def build_physics_groups() -> List[Node]:
 				skim_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
 					schemes_generator.with_index(i), # parts_generator
-					1 * GB, # job_read_size
+					2 * GB, # job_read_size
 					0.1, # output_fraction
 					100 * MB, # output_file_size
 				),
