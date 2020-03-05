@@ -50,6 +50,29 @@ class NoneBinner(Binner):
 		return num
 
 
+class LinearBinner(Binner):
+	def __init__(self, width: int=1) -> None:
+		self._width: int = width
+
+	@property
+	def bounded(self) -> bool:
+		return False
+
+	@property
+	def bins(self) -> int:
+		return -1
+
+	def bin_edges(self) -> Iterator[int]:
+		return itertools.count(step=self._width)
+
+	def bin_limits(self, bin: int) -> Tuple[int, int]:
+		start = bin * self._width
+		return start, start + self._width
+
+	def __call__(self, num: int) -> int:
+		return num // self._width
+
+
 class LogBinner(Binner):
 	def __init__(self, first: int=0, last: int=-1, step: int=1) -> None:
 		self._first: int = first

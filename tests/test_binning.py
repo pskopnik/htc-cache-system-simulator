@@ -7,6 +7,7 @@ from simulator.dstructures.binning import (
 	BinnedMapping,
 	BinnedSparseMapping,
 	Binner,
+	LinearBinner,
 	LogBinner,
 	NoneBinner,
 )
@@ -109,7 +110,7 @@ def test_unbounded_log_binner(step: int) -> None:
 	_assert_binning(b, 0, 2 ** 45)
 
 	num = random.randrange(2 ** 10, 2 ** 50)
-	for i in range(10):
+	for _ in range(10):
 		old_bin = b(num)
 		num *= 2 ** step
 		assert b(num) == old_bin + 1
@@ -126,10 +127,26 @@ def test_none_binner() -> None:
 
 	for i in range(100):
 		num = random.randrange(0, 1000000)
-		assert num == b(num)
+		assert b(num) == num
 
-# Following is an implementation of test_log_binner_unbounded and
-# test_none_binner using a parametrised fixture.
+@pytest.mark.parametrize('width', (2, 10, 100)) # type: ignore[misc]
+def test_linear_binner(width: int) -> None:
+	b = LinearBinner(width=width)
+
+	assert b.bins == -1
+	assert b.bounded == False
+
+	_assert_bin_limits(b, 1000)
+	_assert_bin_edges(b, 1000)
+	_assert_binning(b, 0, 2 ** 45)
+
+	num = random.randrange(0, width)
+	for i in range(10):
+		assert b(num) == i
+		num += width
+
+# Following is an implementation of test_none_binner using a parametrised
+# fixture.
 
 # TODO: mypy error
 # Function is missing a type annotation for one or more arguments [no-untyped-def]
@@ -140,6 +157,10 @@ def test_none_binner() -> None:
 	(LogBinner, (3,), {}),
 	(LogBinner, (4,), {}),
 	(NoneBinner, tuple(), {}),
+	(LinearBinner, tuple(), {}),
+	(LinearBinner, (2,), {}),
+	(LinearBinner, (10,), {}),
+	(LinearBinner, (100,), {}),
 ])
 def unbounded_binner(request) -> Binner:
 	return cast(Binner, request.param[0](*request.param[1], **request.param[2]))
