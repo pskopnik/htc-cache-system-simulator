@@ -1,4 +1,5 @@
 import abc
+from enum import auto, Enum
 import itertools
 import functools
 import random
@@ -44,8 +45,14 @@ def skipping_channel(
 		skip = int(skip_count_dist())
 		yield ts
 
-# TODO should be named something more general than GrowthModel
-GrowthModel = Iterable[Tuple[TimeStamp, int]]
+
+class DataSetAction(Enum):
+	GROW_SHRINK = auto()
+	REPLACE = auto()
+
+
+# DataSetEvolutionModel (DSEModel)
+DSEModel = Iterable[Tuple[TimeStamp, DataSetAction, int]]
 
 SubmitterScaffold = Callable[[TimeStamp], Submitter]
 
@@ -134,7 +141,7 @@ class LinearGrowthModel(object):
 		self._growth_rate: float = growth_rate
 		self._max_size: int = max_size
 
-	def __iter__(self) -> Iterator[Tuple[TimeStamp, int]]:
+	def __iter__(self) -> Iterator[Tuple[TimeStamp, DataSetAction, int]]:
 		size = self._initial_size
 		prev_ts = 0
 
@@ -144,40 +151,63 @@ class LinearGrowthModel(object):
 			if self._max_size > 0 and size > self._max_size:
 				size = self._max_size
 
-			yield ts, size
+			yield ts, DataSetAction.GROW_SHRINK, size
+
+
+class ReplaceModel(object):
+	def __init__(
+		self,
+		size: int,
+		channel: EventChannel,
+	) -> None:
+		self._size: int = size
+		self._schedule: EventChannel = channel
+
+	def __iter__(self) -> Iterator[Tuple[TimeStamp, DataSetAction, int]]:
+		return zip(
+			self._schedule,
+			itertools.repeat(DataSetAction.REPLACE),
+			itertools.repeat(self._size),
+		)
 
 
 class PassiveNode(Node):
-	def __init__(self, growth_model: GrowthModel, output_file_size: int, name: Optional[str]=None):
+	def __init__(self, dse_model: DSEModel, output_file_size: int, name: Optional[str]=None):
 		super(PassiveNode, self).__init__(name=name)
 
 		self._data_set.reinitialise(file_size=output_file_size, name=f'output of {self!s}')
-		self._growth_model: GrowthModel = growth_model
+		self._dse_model: DSEModel = dse_model
 
-		self._iter_growth_model, self._update_growth_model = itertools.tee(self._growth_model, 2)
+		self._iter_dse_model, self._update_dse_model = itertools.tee(self._dse_model, 2)
 
 	def update_channel(self) -> EventChannel:
 		"""Constructs and returns a channel describing the node's updates.
 
 		Must only be called once, the returned channel can be teed.
 		"""
-		return (ts for ts, _ in self._update_growth_model)
+		return (ts for ts, _, _ in self._update_dse_model)
 
-	def _crt_grow_data_set_cb(self, total_size: int) -> Callable[[], None]:
+	def _crt_update_data_set_cb(self, action: DataSetAction, total_size: int) -> Callable[[], None]:
 		def inner() -> None:
-			if self._data_set.size < total_size:
-				# TODO is shrinking necessary?
+			if action is DataSetAction.GROW_SHRINK:
+				if self._data_set.size < total_size:
+					# TODO is shrinking necessary? Would require an ordering of files
+					# could be arbitrary, random or (reverse) creation order
+					self._data_set.replace(size=total_size)
+				else:
+					self._data_set.grow(self._data_set.size - total_size)
+			elif action is DataSetAction.REPLACE:
 				self._data_set.replace(size=total_size)
 			else:
-				self._data_set.grow(self._data_set.size - total_size)
+				raise NotImplementedError(f'{action!r} not supported by PassiveNode')
 
 		return inner
 
 	def __iter__(self) -> Iterator[Submitter]:
-		for ts, size in self._iter_growth_model:
+		for ts, action, size in self._iter_dse_model:
 			yield CallbackWrapSubmitter(
 				NoneSubmitter(ts, origin=self),
-				post_cb = self._crt_grow_data_set_cb(size),
+				post_cb = self._crt_update_data_set_cb(action, size),
 			)
 
 
