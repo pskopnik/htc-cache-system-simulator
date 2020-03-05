@@ -1,11 +1,12 @@
-from .nodes import delaying_channel, skipping_channel, Node, PassiveNode, LinearGrowthModel, DistributionSchedule, ComputingNode, PhysicsProcessingModel
+import functools
+import itertools
+import math
+from typing import List
+import random
+
+from .nodes import delaying_channel, skipping_channel, Node, PassiveNode, ReplaceModel, LinearGrowthModel, DistributionSchedule, ComputingNode, PhysicsProcessingModel
 from .. import TimeStamp
 from ..schemes import NonCorrelatedSchemesGenerator
-from typing import List
-import math
-import random
-import itertools
-import functools
 
 class LayerSpec(object):
 	spread: int

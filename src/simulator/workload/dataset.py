@@ -237,13 +237,14 @@ class DataSetSubmitter(Submitter):
 		origin: Optional[Any] = None,
 	) -> Scaffold:
 		parts = parts_gen.parts(data_set.file_size)
-		file_size_read = sum(part[1] for part in parts)
+		file_size_read = sum(bytes_read for _, bytes_read in parts)
 		# Each job reads a maximum of job_read_size bytes
 		files_per_job = job_read_size // file_size_read # implicit floor
 		if files_per_job < 1:
 			raise Exception(
 				f'Attempting to scaffold a DataSetSubmitter which would read not a single file ' +
-				f'per job, job_read_size={job_read_size}, file_size_read={file_size_read}'
+				f'per job, job_read_size={job_read_size}, file_size_read={file_size_read}, ' +
+				f'data_set={data_set}'
 			)
 		return cls.Scaffold(data_set, parts, files_per_job, origin=origin)
 

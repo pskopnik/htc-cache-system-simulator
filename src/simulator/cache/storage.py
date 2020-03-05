@@ -80,7 +80,7 @@ class Storage(object):
 		return evicted_bytes
 
 	def place(self, file: FileID, parts: Sequence[PartSpec]) -> int:
-		"""Evicts all parts of file from the storage.
+		"""Places the passed parts of files in the storage.
 
 		Returns: Number of bytes added to the storage.
 		"""
