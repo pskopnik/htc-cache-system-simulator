@@ -51,6 +51,7 @@ class MIND(StateDrivenOfflineProcessor):
 		def pop_eviction_candidates(
 			self,
 			file: FileID = '',
+			ts: int = 0,
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -272,6 +273,7 @@ class MINCod(StateDrivenOfflineProcessor):
 		def pop_eviction_candidates(
 			self,
 			file: FileID = '',
+			ts: int = 0,
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,

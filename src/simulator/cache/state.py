@@ -31,6 +31,7 @@ class StateDrivenProcessor(object):
 		def pop_eviction_candidates(
 			self,
 			file: FileID = "",
+			ts: int = 0,
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
@@ -94,6 +95,7 @@ class StateDrivenProcessor(object):
 		while free_bytes < missing_bytes:
 			for eviction_candidate in self._state.pop_eviction_candidates(
 				file = access.file,
+				ts = access.access_ts,
 				ind = ind,
 				requested_bytes = requested_bytes,
 				contained_bytes = contained_bytes,
@@ -145,6 +147,7 @@ class StateDrivenOfflineProcessor(StateDrivenProcessor, OfflineProcessor):
 		def pop_eviction_candidates(
 			self,
 			file: FileID = "",
+			ts: int = 0,
 			ind: int = 0,
 			requested_bytes: int = 0,
 			contained_bytes: int = 0,
