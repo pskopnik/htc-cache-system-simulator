@@ -51,14 +51,22 @@ def _replay(
 	if state_cb is not None:
 		state_cb(_ReplayStateAccessor(file))
 
-	while True:
-		try:
-			# TODO will over-read: should abort at end_pos
-			yield _read_access(file)
-			if end_pos is not None and file.tell() >= end_pos:
+	def inner() -> Iterator[AccessAssignment]:
+
+		# This function is a generator.
+		# The outer function executes normally, meaning that state_cb is
+		# called immediately and not during the first next(.) call.
+
+		while True:
+			try:
+				# TODO will over-read: should abort at end_pos
+				yield _read_access(file)
+				if end_pos is not None and file.tell() >= end_pos:
+					break
+			except _EndOfFile:
 				break
-		except _EndOfFile:
-			break
+
+	return inner()
 
 def _reverse_replay(
 	file: BinaryIO,
@@ -368,22 +376,37 @@ class Reader(object):
 
 		# Only evaluates a Predicate of OneRange style with YieldOnly action.
 
-		replay_state: Optional[_ReplayStateAccessor] = None
+		opt_replay_state: Optional[_ReplayStateAccessor] = None
 
 		def state_cb(state_accessor: _ReplayStateAccessor) -> None:
-			nonlocal replay_state
-			replay_state = state_accessor
+			nonlocal opt_replay_state
+			opt_replay_state = state_accessor
 
 		read_count: int = 0
 
 		def open_and_replay() -> Iterator[AccessAssignment]:
-			nonlocal read_count
-			with open(self._path, mode='rb') as file:
-				for assgnm in _replay(file, state_cb=state_cb):
-					read_count += 1
-					yield assgnm
+			file = open(self._path, mode='rb')
+			try:
+				it = _replay(file, state_cb=state_cb)
+			except Exception as e:
+				file.close()
+				raise e
+
+			def inner() -> Iterator[AccessAssignment]:
+				nonlocal read_count
+				with file:
+					for assgnm in it:
+						read_count += 1
+						yield assgnm
+
+			return inner()
 
 		it = open_and_replay()
+
+		if opt_replay_state is None:
+			raise Exception('opt_replay_state is expected to have been set')
+
+		replay_state: _ReplayStateAccessor = opt_replay_state
 
 		begin_pos: int = 0
 		end_pos: int = 0
@@ -393,8 +416,8 @@ class Reader(object):
 		def read_state() -> None:
 			nonlocal end
 			# This is an optimistic cast, but will hold as long as _replay
-			# calls state_cb before yielding for the first time.
-			end = cast(_ReplayStateAccessor, replay_state).file.tell()
+			# is called before yielding for the first time.
+			end = replay_state.file.tell()
 
 		try:
 			taken_count: int = 0
@@ -450,5 +473,3 @@ class Reader(object):
 		self._len = length
 
 		self._unevaluated_predicate = False
-
-
