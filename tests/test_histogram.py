@@ -21,7 +21,7 @@ from typing import (
 )
 from typing_extensions import Protocol
 
-from simulator.dstructures.binning import Binner, LogBinner, NoneBinner
+from simulator.dstructures.binning import Binner, LogBinner
 from simulator.dstructures.histogram import (
 	BinnedCounters,
 	BinnedProbabilities,

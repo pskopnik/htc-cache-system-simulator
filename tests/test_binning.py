@@ -9,7 +9,6 @@ from simulator.dstructures.binning import (
 	Binner,
 	LinearBinner,
 	LogBinner,
-	NoneBinner,
 )
 
 _T = TypeVar('_T')
@@ -115,21 +114,7 @@ def test_unbounded_log_binner(step: int) -> None:
 		num *= 2 ** step
 		assert b(num) == old_bin + 1
 
-def test_none_binner() -> None:
-	b = NoneBinner()
-
-	assert b.bins == -1
-	assert b.bounded == False
-
-	_assert_bin_limits(b, 1000)
-	_assert_bin_edges(b, 1000)
-	_assert_binning(b, 0, 2 ** 45)
-
-	for i in range(100):
-		num = random.randrange(0, 1000000)
-		assert b(num) == num
-
-@pytest.mark.parametrize('width', (2, 10, 100)) # type: ignore[misc]
+@pytest.mark.parametrize('width', (1, 2, 10, 100)) # type: ignore[misc]
 def test_linear_binner(width: int) -> None:
 	b = LinearBinner(width=width)
 
@@ -156,8 +141,8 @@ def test_linear_binner(width: int) -> None:
 	(LogBinner, (2,), {}),
 	(LogBinner, (3,), {}),
 	(LogBinner, (4,), {}),
-	(NoneBinner, tuple(), {}),
 	(LinearBinner, tuple(), {}),
+	(LinearBinner, (1,), {}),
 	(LinearBinner, (2,), {}),
 	(LinearBinner, (10,), {}),
 	(LinearBinner, (100,), {}),

@@ -31,25 +31,6 @@ class Binner(abc.ABC):
 		raise NotImplementedError
 
 
-class NoneBinner(Binner):
-	@property
-	def bounded(self) -> bool:
-		return False
-
-	@property
-	def bins(self) -> int:
-		return -1
-
-	def bin_edges(self) -> Iterator[int]:
-		return iter(itertools.count())
-
-	def bin_limits(self, bin: int) -> Tuple[int, int]:
-		return bin, bin+1
-
-	def __call__(self, num: int) -> int:
-		return num
-
-
 class LinearBinner(Binner):
 	def __init__(self, width: int=1) -> None:
 		self._width: int = width
