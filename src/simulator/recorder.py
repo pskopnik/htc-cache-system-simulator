@@ -7,6 +7,7 @@ from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, Bina
 
 from .distributor import AccessAssignment
 from .workload import Access
+from .utils import consume
 
 
 class _EndOfFile(Exception):
@@ -106,7 +107,7 @@ def _reverse_replay(
 				if exhausted:
 					# at beginning of file, '\n' at -1
 					start_ind = 0
-					# TODO: is this if required or result of invalid parameters?
+					# TODO: is this if required or the result of invalid parameters?
 					# Could occur if the first chunk starts exactly at the file's start
 					if len(buf) == 0:
 						return
@@ -170,7 +171,6 @@ def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
 		Access(
 			access['access_ts'],
 			access['file'],
-			# TODO: These __getitem__ calls are expensive!
 			list(map(cast('Callable[[Any], Tuple[int, int]]', tuple), access['parts'])),
 		),
 		dct['cache_proc'],
@@ -236,8 +236,6 @@ class Predicate(abc.ABC):
 		This method may be implemented optionally by checkers in order to
 		accelerate evaluation. It is tried for checkers of appropriate style
 		before using __call__.
-
-		TODO: Should parameter and return types be Iterable[AccessAssignment].
 		"""
 		raise NotImplementedError
 
@@ -247,8 +245,6 @@ class Predicate(abc.ABC):
 		This method may be implemented optionally by checkers in order to
 		accelerate evaluation. It is tried for checkers of appropriate style
 		before using __call__.
-
-		TODO: Should parameter and return types be Iterable[AccessAssignment].
 		"""
 		raise NotImplementedError
 
@@ -354,7 +350,7 @@ class Reader(object):
 			if self._unevaluated_predicate:
 				self._evaluate_predicate()
 			else:
-				sum(map(lambda _: 0, iter(self))) # TODO consume(iter(self))
+				consume(iter(self))
 
 		return cast(int, self._len)
 

@@ -1,6 +1,7 @@
 import collections
 import itertools
-from typing import Any, Callable, Iterable, Iterator, Optional, TypeVar
+import operator
+from typing import Any, Callable, cast, Iterable, Iterator, Optional, TypeVar
 
 
 _T = TypeVar('_T')
@@ -13,16 +14,14 @@ def ignore_args(f: Callable[[], _T]) -> Callable[..., _T]:
 
 	return _inner
 
-# TODO
-# what is faster / better?
-# ignore_args(f)
-# or
-# lambda _: f()
-
 def callback_iterable(cb: Callable[[], None]) -> Iterator[Any]:
 	"""Returns an iterator it which calls cb on next(it).
 	"""
-	return filter(lambda _: False, map(ignore_args(cb), [None]))
+	return itertools.islice(
+		map(cast('Callable[[None], None]', lambda _: cb()), [None]),
+		1,
+		1,
+	)
 
 def repeat_each(it: Iterable[_T], n: int) -> Iterator[_T]:
 	"""Returns an iterator which repeats each element of it n times.
@@ -40,12 +39,18 @@ def consume(it: Iterable[Any], n: Optional[int]=None) -> None:
 	else:
 		next(itertools.islice(it, n, n), None)
 
-def accumulate_initial(iterable: Iterable[_T], func: Callable[[_T, _T], _T], initial: Optional[_T]=None) -> Iterator[_T]:
-	"""Like itertools.accumulate but yields initial first, if not None.
+def accumulate(
+	iterable: Iterable[_T],
+	func: Callable[[_T, _T], _T] = operator.add,
+	initial: Optional[_T] = None,
+) -> Iterator[_T]:
+	"""Like itertools.accumulate but with prefixed initial, if not None.
+
+	This replicates the behaviour of itertools.accumulate in Python 3.8.
 	"""
 	initial_it = [initial] if initial is not None else []
 
-	return itertools.chain(
-		initial_it,
-		itertools.accumulate(iterable, func),
+	return itertools.accumulate(
+		itertools.chain(initial_it, iterable),
+		func,
 	)

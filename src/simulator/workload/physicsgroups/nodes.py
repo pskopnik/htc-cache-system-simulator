@@ -9,7 +9,7 @@ from typing_extensions import Protocol
 from .. import PartsGenerator, Submitter, TimeStamp
 from ..dataset import DataSet, DataSetSubmitter
 from ..submitters import CallbackWrapSubmitter, NoneSubmitter
-from ...utils import ignore_args
+from ...utils import accumulate
 
 
 # TODO
@@ -108,14 +108,10 @@ class DistributionSchedule(object):
 		self._yield_zero: bool = yield_zero
 
 	def __iter__(self) -> Iterator[TimeStamp]:
-		# PY3.8 accumulate() has keyword arg initial which can be used instead of iterator chaining
-		# initial = 0 if self._yield_zero else None
-
-		initial_it = [0] if self._yield_zero else []
-
-		return itertools.chain(
-			initial_it,
-			itertools.accumulate(map(int, map(ignore_args(self._dist), itertools.repeat(None)))),
+		dist = self._dist
+		return accumulate(
+			map(int, map(lambda _: dist(), itertools.repeat(None))),
+			initial = 0 if self._yield_zero else None,
 		)
 
 	@classmethod
