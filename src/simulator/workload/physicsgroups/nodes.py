@@ -8,7 +8,8 @@ from typing_extensions import Protocol
 
 from .. import PartsGenerator, Submitter, TimeStamp
 from ..dataset import DataSet, DataSetSubmitter
-from ..utils import ignore_args, CallbackWrapSubmitter, NoneSubmitter
+from ..submitters import CallbackWrapSubmitter, NoneSubmitter
+from ...utils import ignore_args
 
 
 # TODO

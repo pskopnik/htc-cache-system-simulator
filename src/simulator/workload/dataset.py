@@ -2,7 +2,7 @@ from typing import Any, Iterable, Iterator, List, Optional
 import math
 from . import AccessScheme, FileID, Job, PartSpec, PartsGenerator, Submitter, TimeStamp
 from itertools import repeat
-from .utils import repeat_each
+from ..utils import repeat_each
 
 
 class DataSet(object):
