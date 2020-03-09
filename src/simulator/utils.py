@@ -3,16 +3,7 @@ import itertools
 import operator
 from typing import Any, Callable, cast, Iterable, Iterator, Optional, TypeVar
 
-
 _T = TypeVar('_T')
-
-def ignore_args(f: Callable[[], _T]) -> Callable[..., _T]:
-	"""Returns a function which calls f while dropping all received arguments.
-	"""
-	def _inner(*args: Any, **kwargs: Any) -> _T:
-		return f()
-
-	return _inner
 
 def callback_iterable(cb: Callable[[], None]) -> Iterator[Any]:
 	"""Returns an iterator it which calls cb on next(it).
