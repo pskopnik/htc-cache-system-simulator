@@ -233,14 +233,17 @@ def cache_system_from_args(args: Any) -> CacheSystem:
 		raise NotImplementedError
 
 def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processor], bool, bool]:
+	user_args: str = args.cache_processor_args if args.cache_processor_args is not None else ''
+	partial = functools.partial
+
 	if args.cache_processor == 'arcbit':
-		return functools.partial(ARCBit, ghosts_factor=1.0), True, False
+		return partial(ARCBit, ARCBit.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'fifo':
 		return FIFO, True, False
 	elif args.cache_processor == 'greedydual':
-		return functools.partial(GreedyDual, mode=GreedyDualMode.TOTAL_SIZE), True, False
+		return partial(GreedyDual, GreedyDual.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'landlord':
-		return functools.partial(Landlord, mode=LandlordMode.FETCH_SIZE), True, False
+		return partial(Landlord, Landlord.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'lru':
 		return LRU, True, False
 	elif args.cache_processor == 'mcf':
@@ -248,11 +251,11 @@ def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processo
 	elif args.cache_processor == 'min':
 		return MIN, False, True
 	elif args.cache_processor == 'mincod':
-		return functools.partial(MINCod, MINCod.Configuration()), False, True
+		return partial(MINCod, MINCod.Configuration.from_user_args(user_args)), False, True
 	elif args.cache_processor == 'mind':
-		return functools.partial(MIND, MIND.Configuration(0.05, min_d=5, max_d=100)), False, True
+		return partial(MIND, MIND.Configuration.from_user_args(user_args)), False, True
 	elif args.cache_processor == 'obma':
-		return functools.partial(OBMA, OBMA.Configuration()), False, True
+		return partial(OBMA, OBMA.Configuration.from_user_args(user_args)), False, True
 	elif args.cache_processor == 'rand':
 		return Rand, True, False
 	elif args.cache_processor == 'size':
@@ -294,7 +297,7 @@ parser_replay.add_argument('--warm-up-time', type=int, help='number of seconds c
 parser_replay.add_argument('--process-accesses', type=int, help='number of accesses to be processed (including warm-up). Limit; has iterate as long as all limits hold semantic.')
 parser_replay.add_argument('--process-time', type=int, help='number of seconds to be processed (including warm-up). Limit; has iterate as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 parser_replay.add_argument('--cache-processor-count', type=int, default=1, help='number of simulated cache processors, must match recorded accesses.')
-parser_replay.add_argument('--cache-processor', required=True, type=str, help='cache processor (algorithms to use) type to be simulated.')
+parser_replay.add_argument('--cache-processor', required=True, type=str, help='cache processor type (algorithm to use) to be simulated.')
 parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to the each cache processor.')
 parser_replay.add_argument('--storage-size', required=True, type=int, help='size of the cache storage volumes in bytes.')
 parser_replay.add_argument('--non-shared-storage', action='store_false', dest='shared_storage', help='each cache processor receives its own storage volume if set.')

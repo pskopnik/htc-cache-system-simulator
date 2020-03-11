@@ -4,11 +4,21 @@ from enum import Enum, auto
 from typing import Iterable, Optional
 
 from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
+from ...params import parse_user_args, SimpleField
 
 
 class Mode(Enum):
 	TOTAL_SIZE = auto()
 	ACCESS_SIZE = auto()
+
+	@classmethod
+	def from_str(cls, val: str) -> 'Mode':
+		if val == 'total_size':
+			return cls.TOTAL_SIZE
+		elif val == 'access_size':
+			return cls.ACCESS_SIZE
+		else:
+			raise ValueError(f'Unknown {cls.__name__} str value {val!r}')
 
 
 class GreedyDual(StateDrivenOnlineProcessor):
@@ -28,6 +38,18 @@ class GreedyDual(StateDrivenOnlineProcessor):
 	greater than the accessed fraction.
 	"""
 
+	@dataclass
+	class Configuration(object):
+		mode: Mode = field(init=True, default=Mode.TOTAL_SIZE)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'GreedyDual.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('mode', Mode.from_str),
+			])
+			return inst
+
 	class State(StateDrivenOnlineProcessor.State):
 		@dataclass
 		class _FileInfo(object):
@@ -41,8 +63,8 @@ class GreedyDual(StateDrivenOnlineProcessor):
 			def file(self) -> FileID:
 				return self._file
 
-		def __init__(self, mode: Mode) -> None:
-			self._mode: Mode = mode
+		def __init__(self, configuration: 'GreedyDual.Configuration') -> None:
+			self._mode: Mode = configuration.mode
 			self._pq: KeyedPQ[GreedyDual.State._FileInfo] = KeyedPQ()
 			self._threshold: float = 0.0
 
@@ -111,8 +133,13 @@ class GreedyDual(StateDrivenOnlineProcessor):
 			it.data.access_threshold = self._threshold
 
 	def _init_state(self) -> 'GreedyDual.State':
-		return GreedyDual.State(self._mode)
+		return GreedyDual.State(self._configuration)
 
-	def __init__(self, storage: Storage, mode: Mode=Mode.TOTAL_SIZE, state: Optional[State]=None):
-		self._mode: Mode = mode
+	def __init__(
+		self,
+		configuration: 'GreedyDual.Configuration',
+		storage: Storage,
+		state: Optional[State] = None,
+	):
+		self._configuration: GreedyDual.Configuration = configuration
 		super(GreedyDual, self).__init__(storage, state=state)

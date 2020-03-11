@@ -1,12 +1,26 @@
+from dataclasses import dataclass, field
 from typing import cast, Iterable, List, Optional, Tuple
 
-from ...dstructures.lru import FileInfo, FileLRUDict
 from ..state import Access, AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
+from ...dstructures.lru import FileInfo, FileLRUDict
+from ...params import parse_user_args, SimpleField
 
 
 class ARCBit(StateDrivenOnlineProcessor):
 	"""Processor following an adaptive policy based on two LRU structures.
 	"""
+
+	@dataclass
+	class Configuration(object):
+		ghosts_factor: float = field(init=True, default=1.0)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'ARCBit.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('ghosts_factor', float),
+			])
+			return inst
 
 	class State(StateDrivenProcessor.State):
 		class Item(StateDrivenProcessor.State.Item):
@@ -17,14 +31,14 @@ class ARCBit(StateDrivenOnlineProcessor):
 			def file(self) -> FileID:
 				return self._file
 
-		def __init__(self, total_size: int, ghosts_factor: float=1.0) -> None:
+		def __init__(self, total_size: int, configuration: 'ARCBit.Configuration') -> None:
 			self._total_size: int = total_size
-			self._ghosts_factor: float = ghosts_factor
+			self._ghosts_factor: float = configuration.ghosts_factor
 
 			# Targeted _top_once.total_size
 			self._top_once_target_size: int = 0
-			self._ghosts_total_size: int = int(total_size * ghosts_factor)
-			self._once_total_size: int = int((1 + ghosts_factor) * total_size / 2)
+			self._ghosts_total_size: int = int(total_size * self._ghosts_factor)
+			self._once_total_size: int = int((1 + self._ghosts_factor) * total_size / 2)
 
 			# _top_once contains the top of the LRU list of files seen only
 			# once. _Referred to as T_1 in the paper.
@@ -310,14 +324,14 @@ class ARCBit(StateDrivenOnlineProcessor):
 						'eviction candidates',
 					)
 
+	def _init_state(self) -> 'ARCBit.State':
+		return ARCBit.State(self._storage.total_bytes, self._configuration)
+
 	def __init__(
 		self,
+		configuration: 'ARCBit.Configuration',
 		storage: Storage,
 		state: Optional[State] = None,
-		ghosts_factor: float = 1.0,
 	) -> None:
-		self._ghosts_factor = ghosts_factor
+		self._configuration = configuration
 		super(ARCBit, self).__init__(storage, state=state)
-
-	def _init_state(self) -> 'ARCBit.State':
-		return ARCBit.State(self._storage.total_bytes, ghosts_factor=self._ghosts_factor)

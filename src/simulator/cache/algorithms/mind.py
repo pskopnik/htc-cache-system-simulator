@@ -5,10 +5,11 @@ import itertools
 import math
 from typing import Callable, cast, Iterable, Optional, Union
 
+from ..state import AccessInfo, FileID, SimpleAccessReader, StateDrivenProcessor, StateDrivenOfflineProcessor, Storage
 from ...dstructures.accessseq import ReuseTimer
 from ...dstructures.binning import BinnedMapping, LogBinner
 from ...dstructures.sorted import SortedDefaultDict
-from ..state import AccessInfo, FileID, SimpleAccessReader, StateDrivenProcessor, StateDrivenOfflineProcessor, Storage
+from ...params import parse_user_args, SimpleField
 
 
 class MIND(StateDrivenOfflineProcessor):
@@ -24,9 +25,19 @@ class MIND(StateDrivenOfflineProcessor):
 	"""
 	@dataclass
 	class Configuration(object):
-		d_factor: float = field(init=True)
+		d_factor: float = field(init=True, default=0.95)
 		min_d: Optional[int] = field(init=True, default=None)
 		max_d: Optional[int] = field(init=True, default=None)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'MIND.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('d_factor', float),
+				SimpleField('min_d', int),
+				SimpleField('max_d', int),
+			])
+			return inst
 
 	class State(StateDrivenOfflineProcessor.State):
 		@dataclass
@@ -141,6 +152,17 @@ class MINCod(StateDrivenOfflineProcessor):
 		first_class: int = field(init=True, default=10)
 		last_class: int = field(init=True, default=40)
 		class_width: int = field(init=True, default=2)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'MINCod.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('classes', bool),
+				SimpleField('first_class', int),
+				SimpleField('last_class', int),
+				SimpleField('class_width', int),
+			])
+			return inst
 
 	class State(StateDrivenOfflineProcessor.State):
 		@dataclass

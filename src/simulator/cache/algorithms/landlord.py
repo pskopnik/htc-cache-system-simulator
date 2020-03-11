@@ -4,6 +4,7 @@ from enum import auto, Enum
 from typing import Iterable, Optional
 
 from ..state import AccessInfo, FileID, StateDrivenProcessor, StateDrivenOnlineProcessor, Storage
+from ...params import parse_user_args, SimpleField
 
 
 class Mode(Enum):
@@ -12,6 +13,21 @@ class Mode(Enum):
 	FETCH_SIZE = auto()
 	ADD_FETCH_SIZE = auto()
 	NO_COST = auto()
+
+	@classmethod
+	def from_str(cls, val: str) -> 'Mode':
+		if val == 'total_size':
+			return cls.TOTAL_SIZE
+		elif val == 'access_size':
+			return cls.ACCESS_SIZE
+		elif val == 'fetch_size':
+			return cls.FETCH_SIZE
+		elif val == 'add_fetch_size':
+			return cls.ADD_FETCH_SIZE
+		elif val == 'no_cost':
+			return cls.NO_COST
+		else:
+			raise ValueError(f'Unknown {cls.__name__} str value {val!r}')
 
 
 class Landlord(StateDrivenOnlineProcessor):
@@ -53,6 +69,18 @@ class Landlord(StateDrivenOnlineProcessor):
 	GreedyDual and GreedyDual-Size.
 	"""
 
+	@dataclass
+	class Configuration(object):
+		mode: Mode = field(init=True, default=Mode.TOTAL_SIZE)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'Landlord.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('mode', Mode.from_str),
+			])
+			return inst
+
 	class State(StateDrivenProcessor.State):
 		@dataclass
 		class _FileInfo(object):
@@ -67,8 +95,8 @@ class Landlord(StateDrivenOnlineProcessor):
 			def file(self) -> FileID:
 				return self._file
 
-		def __init__(self, mode: Mode) -> None:
-			self._mode: Mode = mode
+		def __init__(self, configuration: 'Landlord.Configuration') -> None:
+			self._mode: Mode = configuration.mode
 			self._pq: KeyedPQ[Landlord.State._FileInfo] = KeyedPQ()
 			self._rent_threshold: float = 0.0
 
@@ -158,8 +186,13 @@ class Landlord(StateDrivenOnlineProcessor):
 			raise NotImplementedError
 
 	def _init_state(self) -> 'Landlord.State':
-		return Landlord.State(self._mode)
+		return Landlord.State(self._configuration)
 
-	def __init__(self, storage: Storage, mode: Mode=Mode.TOTAL_SIZE, state: Optional[State]=None):
-		self._mode: Mode = mode
+	def __init__(
+		self,
+		configuration: 'Landlord.Configuration',
+		storage: Storage,
+		state: Optional[State] = None,
+	):
+		self._configuration: Landlord.Configuration = configuration
 		super(Landlord, self).__init__(storage, state=state)

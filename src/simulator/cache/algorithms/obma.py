@@ -3,9 +3,10 @@ from dataclasses import dataclass, field
 import itertools
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
+from ..state import Access, AccessInfo, FileID, SimpleAccessReader, StateDrivenProcessor, StateDrivenOfflineProcessor, Storage
 from ...dstructures.binning import BinnedMapping, LogBinner
 from ...dstructures.accessseq import ReuseTimer
-from ..state import Access, AccessInfo, FileID, SimpleAccessReader, StateDrivenProcessor, StateDrivenOfflineProcessor, Storage
+from ...params import parse_user_args, SimpleField
 
 
 class OBMA(StateDrivenOfflineProcessor):
@@ -36,6 +37,16 @@ class OBMA(StateDrivenOfflineProcessor):
 		first_class: int = field(init=True, default=10)
 		last_class: int = field(init=True, default=40)
 		class_width: int = field(init=True, default=2)
+
+		@classmethod
+		def from_user_args(cls, user_args: str) -> 'OBMA.Configuration':
+			inst = cls()
+			parse_user_args(user_args, inst, [
+				SimpleField('first_class', int),
+				SimpleField('last_class', int),
+				SimpleField('class_width', int),
+			])
+			return inst
 
 	class State(StateDrivenOfflineProcessor.State):
 		@dataclass
