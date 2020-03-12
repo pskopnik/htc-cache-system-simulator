@@ -1,10 +1,11 @@
 from typing import Iterable, Iterator
-from .scheduler import AccessAssignment, NodeSpec, Scheduler
-from ..workload import Job, Task, TimeStamp
-from .stats import StatsCollector
-from .merger import TaskMerger
 
-__all__ = ['AccessAssignment']
+from .merger import TaskMerger
+from .scheduler import AccessAssignment, NodeSpec, Scheduler
+from .stats import StatsCollector
+from ..workload import Job, Task, TimeStamp
+
+__all__ = ['AccessAssignment', 'Distributor', 'NodeSpec', 'StatsCollector']
 
 
 class Distributor(object):

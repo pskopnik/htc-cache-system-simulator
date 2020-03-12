@@ -1,8 +1,9 @@
 import abc
 from collections import deque
 from typing import Any, cast, Deque, Generator, Iterable, Iterator, List, Optional
-from ..workload import Access, TimeStamp
+
 from .accesses import SimpleAccessReader
+from ..workload import Access, TimeStamp
 
 
 class AccessInfo(object):
@@ -15,7 +16,15 @@ class AccessInfo(object):
 		'total_bytes',
 	]
 
-	def __init__(self, access: Access, bytes_hit: int, bytes_missed: int, bytes_added: int, bytes_removed: int, total_bytes: int):
+	def __init__(
+		self,
+		access: Access,
+		bytes_hit: int,
+		bytes_missed: int,
+		bytes_added: int,
+		bytes_removed: int,
+		total_bytes: int,
+	):
 		self.access: Access = access
 		self.bytes_hit: int = bytes_hit
 		self.bytes_missed: int = bytes_missed

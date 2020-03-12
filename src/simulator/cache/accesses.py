@@ -2,7 +2,6 @@ import abc
 from typing import Any, Callable, cast, Iterable, Iterator, Optional, Sequence, Sized, TypeVar, Reversible
 from typing_extensions import Protocol, runtime_checkable
 
-from ..recorder import filter_cache_processor
 from ..distributor import AccessAssignment
 from ..workload import Access
 
@@ -123,3 +122,9 @@ def scope_to_cache_processor(cache_proc: int, access_reader: SimpleAssignmentRea
 	# 	return bound_method(cache_proc)
 	# except:
 	# 	return GenericScoper(cache_proc, access_reader)
+
+def filter_cache_processor(cache_proc: int, it: Iterable[AccessAssignment]) -> Iterator[Access]:
+	return map(
+		lambda assgnm: assgnm.access,
+		filter(lambda assgnm: assgnm.cache_proc == cache_proc, it),
+	)

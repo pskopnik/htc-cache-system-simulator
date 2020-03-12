@@ -1,14 +1,19 @@
-from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, TextIO, Tuple
 import argparse
 import collections
 import csv
 import functools
 import itertools
 import sys
+from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, Sequence, TextIO, Tuple
 
+from .workload import Task
 from .workload.physicsgroups.builder import build_physics_groups
-from .distributor.scheduler import NodeSpec
-from .distributor import AccessAssignment, Distributor
+from .distributor import (
+	AccessAssignment,
+	Distributor,
+	NodeSpec,
+	StatsCollector as DistributorStatsCollector,
+)
 
 from . import recorder
 
@@ -28,6 +33,8 @@ from .cache.algorithms.mind import MIND, MINCod
 from .cache.algorithms.obma import OBMA
 from .cache.algorithms.rand import Rand
 from .cache.algorithms.size import Size
+
+from .utils import consume
 
 def filter_accesses_stop_early(
 	it: Iterable[AccessAssignment],
@@ -110,7 +117,7 @@ class StopEarlyPredicate(recorder.Predicate):
 
 
 def record(args: Any) -> None:
-	tasks = build_physics_groups()
+	tasks = tasks_from_args(args)
 
 	nodes = (NodeSpec(32, 10*1024*1024, 0) for _ in range(100))
 
@@ -129,7 +136,12 @@ def record(args: Any) -> None:
 
 	recorder.record_path(args.file_path, access_it)
 
-	# TODO extract and write stats
+	if args.stats_file is not None:
+		write_distributor_stats_as_csv(
+			distributor.stats,
+			args.stats_file,
+			header = args.stats_header,
+		)
 
 def replay(args: Any) -> None:
 	cache_sys = cache_system_from_args(args)
@@ -148,10 +160,17 @@ def replay(args: Any) -> None:
 
 		cache_sys.stats.reset()
 
-	# TODO: consume
-	collections.deque(cache_sys, maxlen=0)
+	if args.cache_info_file_path is not None:
+		recorder.record_access_info_path(args.cache_info_file_path, cache_sys)
+	else:
+		consume(cache_sys)
 
-	write_cache_stats_as_csv(cache_sys.stats, sys.stdout, header=args.header)
+	if args.stats_file is not None:
+		write_cache_stats_as_csv(
+			cache_sys.stats,
+			args.stats_file,
+			header = args.stats_header,
+		)
 
 def write_cache_stats_as_csv(stats: CacheStatsCollector, file: TextIO, header: bool=True) -> None:
 	writer = csv.writer(file)
@@ -195,6 +214,22 @@ def write_cache_stats_as_csv(stats: CacheStatsCollector, file: TextIO, header: b
 		# stats._total_stats.files / stats._total_stats.accesses,
 		# (stats._total_stats.total_bytes_accessed - stats._total_stats.unique_bytes_accessed) / stats._total_stats.total_bytes_accessed,
 		# stats._total_stats.unique_bytes_accessed / stats._total_stats.total_bytes_accessed,
+	])
+
+def write_distributor_stats_as_csv(stats: DistributorStatsCollector, file: TextIO, header: bool=True) -> None:
+	writer = csv.writer(file)
+	if header:
+		writer.writerow([
+			'accesses',
+			'files',
+			'total_bytes_accessed',
+			'unique_bytes_accessed',
+		])
+	writer.writerow([
+		stats._total_stats.accesses,
+		len(stats._files_stats),
+		stats._total_stats.total_bytes_accessed,
+		stats._total_stats.unique_bytes_accessed,
 	])
 
 def cache_system_from_args(args: Any) -> CacheSystem:
@@ -289,6 +324,8 @@ parser_record = subparsers.add_parser('record', help='Generate cache-seen access
 parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
 parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; has iterate as long as all limits hold semantic.')
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; has iterate as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
+parser_record.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the approximate aggregated access sequence stats are written as CSV.')
+parser_record.add_argument('--stats-no-header', action='store_false', dest='stats_header', help='disables CSV header row in --stats-file if set.')
 
 parser_replay = subparsers.add_parser('replay', help='Perform cache algorithms on a recorded sequence of accesses.')
 parser_replay.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')
@@ -301,7 +338,9 @@ parser_replay.add_argument('--cache-processor', required=True, type=str, help='c
 parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to the each cache processor.')
 parser_replay.add_argument('--storage-size', required=True, type=int, help='size of the cache storage volumes in bytes.')
 parser_replay.add_argument('--non-shared-storage', action='store_false', dest='shared_storage', help='each cache processor receives its own storage volume if set.')
-parser_replay.add_argument('--no-header', action='store_false', dest='header', help='disables CSV header row if set.')
+parser_replay.add_argument('--cache-info-file', type=str, dest='cache_info_file_path', help='output file to which cache info data is written, i.e. hit and miss info for each access.')
+parser_replay.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the aggregated cache stats are written as CSV.')
+parser_replay.add_argument('--stats-no-header', action='store_false', dest='stats_header', help='disables CSV header row in --stats-file if set.')
 
 parser_convert_accesses_to_monitoring = subparsers.add_parser('convert-accesses-to-monitoring', help='Converts a file of access sequences to the same format as used for monitoring data (job trace).')
 parser_convert_accesses_to_monitoring.add_argument('-f', '--file', required=True, type=argparse.FileType('r'), help='input file from which the accesses are read.')

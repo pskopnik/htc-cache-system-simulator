@@ -6,6 +6,8 @@ from os import PathLike
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, BinaryIO, Tuple
 
 from .distributor import AccessAssignment
+from .cache.processor import AccessInfo
+from .cache.accesses import filter_cache_processor
 from .workload import Access
 from .utils import consume
 
@@ -61,7 +63,7 @@ def _replay(
 		while True:
 			try:
 				# TODO will over-read: should abort at end_pos
-				yield _read_access(file)
+				yield _read_assgnm(file)
 				if end_pos is not None and file.tell() >= end_pos:
 					break
 			except _EndOfFile:
@@ -118,44 +120,41 @@ def _reverse_replay(
 			l = buf[start_ind:]
 			buf = buf[:start_ind]
 			dct = orjson.loads(l)
-			yield _dct_to_access(dct)
+			yield _dct_to_assgnm(dct)
 
 			if exhausted and start_ind == 0:
 				return
 
-def filter_cache_processor(cache_proc: int, it: Iterable[AccessAssignment]) -> Iterator[Access]:
-	return map(
-		lambda assgnm: assgnm.access,
-		filter(lambda assgnm: assgnm.cache_proc == cache_proc, it),
-	)
-
 def record(file: BinaryIO, it: Iterable[AccessAssignment]) -> None:
 	for access in it:
-		_write_access(file, access)
+		_write_assgnm(file, access)
 
 def record_path(path: 'PathLike[Any]', it: Iterable[AccessAssignment]) -> None:
 	with open(path, mode='wb') as file:
 		record(file, it)
 
-def passthrough_record(file: BinaryIO, it: Iterable[AccessAssignment]) -> Iterator[AccessAssignment]:
+def passthrough_record(
+	file: BinaryIO,
+	it: Iterable[AccessAssignment],
+) -> Iterator[AccessAssignment]:
 	for access in it:
-		_write_access(file, access)
+		_write_assgnm(file, access)
 		yield access
 
-def _read_access(file: BinaryIO) -> AccessAssignment:
+def _read_assgnm(file: BinaryIO) -> AccessAssignment:
 	l = file.readline()
 	if len(l) == 0:
 		raise _EndOfFile()
 
 	dct = orjson.loads(l)
-	return _dct_to_access(dct)
+	return _dct_to_assgnm(dct)
 
-def _write_access(file: BinaryIO, assgnm: AccessAssignment) -> None:
-	buf = orjson.dumps(_access_to_dct(assgnm))
+def _write_assgnm(file: BinaryIO, assgnm: AccessAssignment) -> None:
+	buf = orjson.dumps(_assgnm_to_dct(assgnm))
 	file.write(buf)
 	file.write(b'\n')
 
-def _access_to_dct(assgnm: AccessAssignment) -> Dict[str, Any]:
+def _assgnm_to_dct(assgnm: AccessAssignment) -> Dict[str, Any]:
 	return {
 		'access': {
 			'access_ts': assgnm.access.access_ts,
@@ -165,7 +164,7 @@ def _access_to_dct(assgnm: AccessAssignment) -> Dict[str, Any]:
 		'cache_proc': assgnm.cache_proc,
 	}
 
-def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
+def _dct_to_assgnm(dct: Dict[str, Any]) -> AccessAssignment:
 	access = dct['access']
 	return AccessAssignment(
 		Access(
@@ -174,6 +173,78 @@ def _dct_to_access(dct: Dict[str, Any]) -> AccessAssignment:
 			list(map(cast('Callable[[Any], Tuple[int, int]]', tuple), access['parts'])),
 		),
 		dct['cache_proc'],
+	)
+
+def replay_access_info(file: BinaryIO) -> Iterator[AccessInfo]:
+	file.seek(0, SEEK_SET)
+
+	while True:
+		try:
+			yield _read_access_info(file)
+		except _EndOfFile:
+			break
+
+def replay_access_info_path(path: 'PathLike[Any]') -> Iterator[AccessInfo]:
+	with open(path, mode='rb') as file:
+		for assgnm in replay_access_info(file):
+			yield assgnm
+
+def record_access_info(file: BinaryIO, it: Iterable[AccessInfo]) -> None:
+	for access in it:
+		_write_access_info(file, access)
+
+def record_access_info_path(path: 'PathLike[Any]', it: Iterable[AccessInfo]) -> None:
+	with open(path, mode='wb') as file:
+		record_access_info(file, it)
+
+def passthrough_record_access_info(
+	file: BinaryIO,
+	it: Iterable[AccessInfo],
+) -> Iterator[AccessInfo]:
+	for access in it:
+		_write_access_info(file, access)
+		yield access
+
+def _read_access_info(file: BinaryIO) -> AccessInfo:
+	l = file.readline()
+	if len(l) == 0:
+		raise _EndOfFile()
+
+	dct = orjson.loads(l)
+	return _dct_to_access_info(dct)
+
+def _write_access_info(file: BinaryIO, info: AccessInfo) -> None:
+	buf = orjson.dumps(_access_info_to_dct(info))
+	file.write(buf)
+	file.write(b'\n')
+
+def _access_info_to_dct(info: AccessInfo) -> Dict[str, Any]:
+	return {
+		'access': {
+			'access_ts': info.access.access_ts,
+			'file': info.access.file,
+			'parts': info.access.parts,
+		},
+		'bytes_hit': info.bytes_hit,
+		'bytes_missed': info.bytes_missed,
+		'bytes_added': info.bytes_added,
+		'bytes_removed': info.bytes_removed,
+		'total_bytes': info.total_bytes,
+	}
+
+def _dct_to_access_info(dct: Dict[str, Any]) -> AccessInfo:
+	access = dct['access']
+	return AccessInfo(
+		Access(
+			access['access_ts'],
+			access['file'],
+			list(map(cast('Callable[[Any], Tuple[int, int]]', tuple), access['parts'])),
+		),
+		dct['bytes_hit'],
+		dct['bytes_missed'],
+		dct['bytes_added'],
+		dct['bytes_removed'],
+		dct['total_bytes'],
 	)
 
 
@@ -191,7 +262,7 @@ class _ForwardsCursor(object):
 	def __next__(self) -> Access:
 		while True:
 			try:
-				assgnm = _read_access(self._file)
+				assgnm = _read_assgnm(self._file)
 				if assgnm.cache_proc == self._cache_proc:
 					return assgnm.access
 			except _EndOfFile:
