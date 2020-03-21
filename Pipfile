@@ -8,7 +8,6 @@ mypy = "*"
 pytest = "*"
 
 [packages]
-bjec = {editable = true,path = "./../../bjec",extras = ["htcondor"]}
 simulator = {editable = true,path = "."}
 
 [requires]
