@@ -19,6 +19,7 @@ setup(
     install_requires = [
         'apq >= 0.10.0, < 0.20.0',
         'orjson >= 2.5.1, < 3.0.0',
+        'sortedcontainers >= 2.2.0, < 3.0.0',
         'typing-extensions',
     ],
     entry_points = {
