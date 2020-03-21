@@ -2,14 +2,120 @@ import functools
 import itertools
 import math
 from typing import List
+from typing_extensions import TypedDict
 import random
 
-from .. import TimeStamp
-from ..nodes import delaying_channel, skipping_channel, Node, PassiveNode, ReplaceModel, LinearGrowthModel, DistributionSchedule, ComputingNode, PhysicsProcessingModel
+from .. import BytesSize
+from ..nodes import (
+    ComputingNode,
+    delaying_channel,
+    DistributionSchedule,
+    LinearGrowthModel,
+    Node,
+    PassiveNode,
+    PhysicsProcessingModel,
+    skipping_channel,
+)
 from ..schemes import NonCorrelatedSchemesGenerator
 from ..units import MiB, GiB, TiB, day
 
-def build() -> List[Node]:
+BytesRate = int
+
+
+class Spec(object):
+    class NormalDistribution(TypedDict):
+        mu: float
+        sigma: float
+
+
+    class Schedule(TypedDict):
+        normal_distribution: "Spec.NormalDistribution"
+
+
+    class LognormalDistribution(TypedDict):
+        mu: float
+        sigma: float
+
+
+    class DelaySchedule(TypedDict):
+        lognormal_distribution: "Spec.LognormalDistribution"
+
+
+    class AODParams(TypedDict):
+        initial_size: BytesSize
+        final_size: BytesSize
+        growth_rate: BytesRate
+        file_size: BytesSize
+        schedule: "Spec.Schedule"
+
+
+    class SkimParams(TypedDict):
+        node_spread: int
+        read_fraction: float
+        job_read_size: BytesSize
+        output_fraction: float
+        file_size: BytesSize
+        delay_schedule: "Spec.DelaySchedule"
+
+
+    class AnaParams(TypedDict):
+        node_spread: int
+        read_fraction: float
+        job_read_size: BytesSize
+        output_fraction: float
+        file_size: BytesSize
+        schedule: "Spec.Schedule"
+
+
+    class Params(TypedDict):
+        aod: "Spec.AODParams"
+        skim: "Spec.SkimParams"
+        ana: "Spec.AnaParams"
+
+
+# C_0 is the name of the base configuration which consists of these parameter values
+c_0_params: Spec.Params = {
+    "aod": {
+        "initial_size": 10 * TiB,
+        "final_size": 100 * TiB,
+        "growth_rate": round((100 * TiB - 10 * TiB) / (2 * 365 * day)),
+        "file_size": 5 * GiB,
+        "schedule": {
+            "normal_distribution": {
+                "mu": 90 * day,
+                "sigma": 15 * day,
+            },
+        },
+    },
+    "skim": {
+        "node_spread": 7,
+        "read_fraction": 0.2,
+        "job_read_size": 2 * GiB,
+        "output_fraction": 0.1,
+        "file_size": 100 * MiB,
+        "delay_schedule": {
+            "lognormal_distribution": {
+                "mu": math.log(2 * day),
+                "sigma": 1.4, # TODO detail calculation
+            },
+        },
+    },
+    "ana": {
+        "node_spread": 2,
+        "read_fraction": 0.8,
+        "job_read_size": 1 * GiB,
+        "output_fraction": 0.05,
+        "file_size": 50 * MiB,
+        "schedule": {
+            "normal_distribution": {
+                "mu": 7 * day,
+                "sigma": 2 * day,
+            },
+        },
+    },
+}
+
+def build(params: Spec.Params=c_0_params) -> List[Node]:
 	nodes: List[Node] = []
 	grid_layer: List[PassiveNode] = []
 	skim_layer: List[Node] = []
@@ -17,16 +123,16 @@ def build() -> List[Node]:
 
 	root_node = PassiveNode(
 		LinearGrowthModel(
-			10 * TiB, # initial size
+			params["aod"]["initial_size"],
 			DistributionSchedule.from_rand_variate( # schedule
 				random.normalvariate, # dist function
-				90 * day, # mu
-				15 * day, # sigma
+				params["aod"]["schedule"]["normal_distribution"]["mu"],
+                params["aod"]["schedule"]["normal_distribution"]["sigma"],
 			),
-			(100 * TiB - 10 * TiB) / (2 * 365 * day), # growth_rate
-			100 * TiB, # max_size
+            params["aod"]["growth_rate"],
+            params["aod"]["final_size"],
 		),
-		5 * GiB, # file_size
+        params["aod"]["file_size"],
 		name = 'pseudo AOD grid task',
 	)
 	grid_layer.append(root_node)
@@ -34,11 +140,11 @@ def build() -> List[Node]:
 	nodes.extend(grid_layer)
 
 	for skim_parent in grid_layer:
-		no_of_children = 7
-		read_fraction = 0.2
-
-		channels = itertools.tee(skim_parent.update_channel(), no_of_children)
-		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children, read_fraction)
+		channels = itertools.tee(skim_parent.update_channel(), params["skim"]["node_spread"])
+		schemes_generator = NonCorrelatedSchemesGenerator(
+            params["skim"]["node_spread"],
+            params["skim"]["read_fraction"],
+        )
 
 		for i, channel in enumerate(channels):
 			node = ComputingNode(
@@ -46,16 +152,16 @@ def build() -> List[Node]:
 					channel, # channel
 					functools.partial( # delay_distribution_dist
 						random.lognormvariate, # dist function
-						math.log(2 * day), # mu
-						1.4, # sigma # TODO detail calculation
+                        params["skim"]["delay_schedule"]["lognormal_distribution"]["mu"],
+                        params["skim"]["delay_schedule"]["lognormal_distribution"]["sigma"],
 					),
 				),
 				skim_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
 					schemes_generator.with_index(i), # parts_generator
-					2 * GiB, # job_read_size
-					0.1, # output_fraction
-					100 * MiB, # file_size
+                    params["skim"]["job_read_size"],
+                    params["skim"]["output_fraction"],
+                    params["skim"]["file_size"],
 				),
 				name = f'skimming task #{i}',
 			)
@@ -64,26 +170,26 @@ def build() -> List[Node]:
 	nodes.extend(skim_layer)
 
 	for ana_parent in skim_layer:
-		no_of_children = 2
-		read_fraction = 0.8
+		schemes_generator = NonCorrelatedSchemesGenerator(
+            params["ana"]["node_spread"],
+            params["ana"]["read_fraction"],
+        )
 
-		schemes_generator = NonCorrelatedSchemesGenerator(no_of_children, read_fraction)
-
-		for i in range(no_of_children):
+		for i in range(params["ana"]["node_spread"]):
 			node = ComputingNode(
 				skipping_channel( # trigger
 					DistributionSchedule.from_rand_variate( # channel
 						random.normalvariate, # dist function
-						7 * day, # mu
-						2 * day, # sigma
+                        params["ana"]["schedule"]["normal_distribution"]["mu"],
+                        params["ana"]["schedule"]["normal_distribution"]["sigma"],
 					),
 				),
 				ana_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
 					schemes_generator.with_index(i), # parts_generator
-					1 * GiB, # job_read_size
-					0.05, # output_fraction
-					50 * MiB, # file_size
+                    params["ana"]["job_read_size"],
+                    params["ana"]["output_fraction"],
+                    params["ana"]["file_size"],
 				),
 				name = f'analysis task #{i}',
 			)
