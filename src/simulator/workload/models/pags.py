@@ -4,47 +4,29 @@ import math
 from typing import List
 import random
 
-from .nodes import delaying_channel, skipping_channel, Node, PassiveNode, ReplaceModel, LinearGrowthModel, DistributionSchedule, ComputingNode, PhysicsProcessingModel
 from .. import TimeStamp
+from ..nodes import delaying_channel, skipping_channel, Node, PassiveNode, ReplaceModel, LinearGrowthModel, DistributionSchedule, ComputingNode, PhysicsProcessingModel
 from ..schemes import NonCorrelatedSchemesGenerator
+from ..units import MiB, GiB, TiB, day
 
-class LayerSpec(object):
-	spread: int
-	# correlation_scheme: CorrelationScheme = from_name("none")
-
-
-class Builder(object):
-	pass
-
-
-KB: int = 2 ** (10 * 1)
-MB: int = 2 ** (10 * 2)
-GB: int = 2 ** (10 * 3)
-TB: int = 2 ** (10 * 4)
-PB: int = 2 ** (10 * 5)
-
-Minute: TimeStamp = 60
-Hour: TimeStamp = 60 * 60
-Day: TimeStamp = 24 * 60 * 60
-
-def build_physics_groups() -> List[Node]:
+def build() -> List[Node]:
 	nodes: List[Node] = []
 	grid_layer: List[PassiveNode] = []
 	skim_layer: List[Node] = []
-	calib_layer: List[Node] = []
+	ana_layer: List[Node] = []
 
 	root_node = PassiveNode(
 		LinearGrowthModel(
-			10 * TB, # initial size
+			10 * TiB, # initial size
 			DistributionSchedule.from_rand_variate( # schedule
 				random.normalvariate, # dist function
-				90 * Day, # mu
-				15 * Day, # sigma
+				90 * day, # mu
+				15 * day, # sigma
 			),
-			(100 * TB - 10 * TB) / (2 * 365 * Day), # growth_rate
-			100 * TB, # max_size
+			(100 * TiB - 10 * TiB) / (2 * 365 * day), # growth_rate
+			100 * TiB, # max_size
 		),
-		5 * GB, # output_file_size
+		5 * GiB, # file_size
 		name = 'pseudo AOD grid task',
 	)
 	grid_layer.append(root_node)
@@ -64,24 +46,24 @@ def build_physics_groups() -> List[Node]:
 					channel, # channel
 					functools.partial( # delay_distribution_dist
 						random.lognormvariate, # dist function
-						math.log(2 * Day), # mu
+						math.log(2 * day), # mu
 						1.4, # sigma # TODO detail calculation
 					),
 				),
 				skim_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
 					schemes_generator.with_index(i), # parts_generator
-					2 * GB, # job_read_size
+					2 * GiB, # job_read_size
 					0.1, # output_fraction
-					100 * MB, # output_file_size
+					100 * MiB, # file_size
 				),
-				name = f'skim task #{i}',
+				name = f'skimming task #{i}',
 			)
 			skim_layer.append(node)
 
 	nodes.extend(skim_layer)
 
-	for calib_parent in skim_layer:
+	for ana_parent in skim_layer:
 		no_of_children = 2
 		read_fraction = 0.8
 
@@ -92,21 +74,21 @@ def build_physics_groups() -> List[Node]:
 				skipping_channel( # trigger
 					DistributionSchedule.from_rand_variate( # channel
 						random.normalvariate, # dist function
-						7 * Day, # mu
-						2 * Day, # sigma
+						7 * day, # mu
+						2 * day, # sigma
 					),
 				),
-				calib_parent.data_set, # input_data_set
+				ana_parent.data_set, # input_data_set
 				PhysicsProcessingModel( # processing_model
 					schemes_generator.with_index(i), # parts_generator
-					1 * GB, # job_read_size
+					1 * GiB, # job_read_size
 					0.05, # output_fraction
-					50 * MB, # output_file_size
+					50 * MiB, # file_size
 				),
-				name = f'calib task #{i}',
+				name = f'analysis task #{i}',
 			)
-			calib_layer.append(node)
+			ana_layer.append(node)
 
-	nodes.extend(calib_layer)
+	nodes.extend(ana_layer)
 
 	return nodes

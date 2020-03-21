@@ -6,10 +6,10 @@ import random
 from typing import Any, Callable, cast, Iterable, Iterator, Generic, Optional, Tuple, TypeVar
 from typing_extensions import Protocol
 
-from .. import PartsGenerator, Submitter, TimeStamp
-from ..dataset import DataSet, DataSetSubmitter
-from ..submitters import CallbackWrapSubmitter, NoneSubmitter
-from ...utils import accumulate
+from . import PartsGenerator, Submitter, TimeStamp
+from .dataset import DataSet, DataSetSubmitter
+from .submitters import CallbackWrapSubmitter, NoneSubmitter
+from ..utils import accumulate
 
 
 # TODO

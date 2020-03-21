@@ -2,7 +2,9 @@ import abc
 from typing import Any, Iterator, Iterable, List, Sequence, Tuple, Optional
 
 FileID = str
-PartSpec = Tuple[int, int] # (part_ind, bytes_read)
+PartInd = int
+BytesSize = int
+PartSpec = Tuple[PartInd, BytesSize] # (part_ind, bytes_read)
 TimeStamp = int
 
 

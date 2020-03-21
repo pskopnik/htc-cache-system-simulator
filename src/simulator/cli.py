@@ -7,7 +7,7 @@ import sys
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, Sequence, TextIO, Tuple
 
 from .workload import Task
-from .workload.physicsgroups.builder import build_physics_groups
+from .workload.models.pags import build as build_pags
 from .distributor import (
 	AccessAssignment,
 	Distributor,
@@ -117,7 +117,7 @@ class StopEarlyPredicate(recorder.Predicate):
 
 
 def record(args: Any) -> None:
-	tasks = tasks_from_args(args)
+	tasks = build_pags()
 
 	nodes = (NodeSpec(32, 10*1024*1024, 0) for _ in range(100))
 
