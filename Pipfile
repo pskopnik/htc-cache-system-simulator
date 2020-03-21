@@ -8,12 +8,8 @@ mypy = "*"
 pytest = "*"
 
 [packages]
-apq = "<0.20.0,>=0.10.0"
-bjec = {editable = true,path = "./../../bjec"}
-typing-extensions = "*"
-sortedcontainers = "*"
+bjec = {editable = true,path = "./../../bjec",extras = ["htcondor"]}
 simulator = {editable = true,path = "."}
-orjson = ">=2.5.1,<3.0.0"
 
 [requires]
 python_version = "3.7"
