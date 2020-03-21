@@ -18,7 +18,6 @@ setup(
     python_requires = '>= 3.7, < 4',
     install_requires = [
         'apq >= 0.10.0, < 0.20.0',
-        'bjec',
         'orjson >= 2.5.1, < 3.0.0',
         'typing-extensions',
     ],
