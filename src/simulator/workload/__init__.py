@@ -1,11 +1,14 @@
 import abc
 from typing import Any, Iterator, Iterable, List, Sequence, Tuple, Optional
 
+BytesRate = int
+BytesSize = int
+TimeStamp = int
+
 FileID = str
 PartInd = int
-BytesSize = int
+
 PartSpec = Tuple[PartInd, BytesSize] # (part_ind, bytes_read)
-TimeStamp = int
 
 
 class AccessScheme(object):
