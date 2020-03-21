@@ -3,13 +3,21 @@ from enum import auto, Enum
 from io import SEEK_SET, SEEK_CUR, SEEK_END
 import orjson
 from os import PathLike
-from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, BinaryIO, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, BinaryIO, Tuple, TYPE_CHECKING, Union
 
 from .distributor import AccessAssignment
 from .cache.processor import AccessInfo
 from .cache.accesses import filter_cache_processor
 from .workload import Access
 from .utils import consume
+
+
+if TYPE_CHECKING:
+    _AnyPathLike = PathLike[Any]
+else:
+    _AnyPathLike = PathLike
+
+_PathType = Union[str, bytes, _AnyPathLike]
 
 
 class _EndOfFile(Exception):
@@ -31,12 +39,12 @@ def replay(file: BinaryIO) -> Iterator[AccessAssignment]:
 def reverse_replay(file: BinaryIO) -> Iterator[AccessAssignment]:
 	return _reverse_replay(file)
 
-def replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
+def replay_path(path: _PathType) -> Iterator[AccessAssignment]:
 	with open(path, mode='rb') as file:
 		for assgnm in replay(file):
 			yield assgnm
 
-def reverse_replay_path(path: 'PathLike[Any]') -> Iterator[AccessAssignment]:
+def reverse_replay_path(path: _PathType) -> Iterator[AccessAssignment]:
 	with open(path, mode='rb') as file:
 		for assgnm in reverse_replay(file):
 			yield assgnm
@@ -129,7 +137,7 @@ def record(file: BinaryIO, it: Iterable[AccessAssignment]) -> None:
 	for access in it:
 		_write_assgnm(file, access)
 
-def record_path(path: 'PathLike[Any]', it: Iterable[AccessAssignment]) -> None:
+def record_path(path: _PathType, it: Iterable[AccessAssignment]) -> None:
 	with open(path, mode='wb') as file:
 		record(file, it)
 
@@ -184,7 +192,7 @@ def replay_access_info(file: BinaryIO) -> Iterator[AccessInfo]:
 		except _EndOfFile:
 			break
 
-def replay_access_info_path(path: 'PathLike[Any]') -> Iterator[AccessInfo]:
+def replay_access_info_path(path: _PathType) -> Iterator[AccessInfo]:
 	with open(path, mode='rb') as file:
 		for assgnm in replay_access_info(file):
 			yield assgnm
@@ -193,7 +201,7 @@ def record_access_info(file: BinaryIO, it: Iterable[AccessInfo]) -> None:
 	for access in it:
 		_write_access_info(file, access)
 
-def record_access_info_path(path: 'PathLike[Any]', it: Iterable[AccessInfo]) -> None:
+def record_access_info_path(path: _PathType, it: Iterable[AccessInfo]) -> None:
 	with open(path, mode='wb') as file:
 		record_access_info(file, it)
 
@@ -367,8 +375,8 @@ class Reader(object):
 			else:
 				return self._len
 
-	def __init__(self, path: 'PathLike[Any]', predicate: Optional[Predicate]=None) -> None:
-		self._path: 'PathLike[Any]' = path
+	def __init__(self, path: _PathType, predicate: Optional[Predicate]=None) -> None:
+		self._path: _PathType = path
 		self._predicate: Optional[Predicate] = predicate
 
 		self._unevaluated_predicate = predicate is not None
