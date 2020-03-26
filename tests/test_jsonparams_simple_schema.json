@@ -1,0 +1,42 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://test/test_jsonparams_simple_schema.json",
+    "type": "object",
+    "required": [
+        "count",
+        "fraction",
+        "size",
+        "rate"
+    ],
+    "properties": {
+        "count": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "fraction": {
+            "$ref": "#/$defs/fraction"
+        },
+        "size": {
+            "$ref": "#/$defs/bytes_size"
+        },
+        "rate": {
+            "$ref": "#/$defs/bytes_rate"
+        }
+    },
+    "additionalProperties": false,
+    "$defs": {
+        "bytes_size": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B$"
+        },
+        "bytes_rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B\\/s$"
+        },
+        "fraction": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+        }
+    }
+}
