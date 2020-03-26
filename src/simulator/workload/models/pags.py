@@ -1,11 +1,12 @@
 import functools
 import itertools
 import math
-from typing import List
+from typing import AnyStr, cast, IO, List
 from typing_extensions import TypedDict
 import random
 
 from .. import BytesRate, BytesSize
+from ..jsonparams import load_validate_transform
 from ..nodes import (
 	ComputingNode,
 	delaying_channel,
@@ -71,6 +72,21 @@ class Spec(object):
 		ana: 'Spec.AnaParams'
 
 
+def load_params(params_file: IO[AnyStr]) -> Spec.Params:
+	return cast(Spec.Params, load_validate_transform(
+		params_file,
+		'pags_parameters_schema.json',
+		transformations = [
+			(('aod', 'initial_size'), 'bytes_size'),
+			(('aod', 'final_size'), 'bytes_size'),
+			(('aod', 'growth_rate'), 'bytes_rate'),
+			(('aod', 'file_size'), 'bytes_size'),
+			(('skim', 'job_read_size'), 'bytes_size'),
+			(('skim', 'file_size'), 'bytes_size'),
+			(('ana', 'job_read_size'), 'bytes_size'),
+			(('ana', 'file_size'), 'bytes_size'),
+		],
+	))
 
 # C_0 is the name of the configuration consisting of these parameter values.
 # It is used as the base configuration for the evaluation of the cache policies.
@@ -122,7 +138,7 @@ c_0_params: Spec.Params = {
 	},
 }
 
-def build(params: Spec.Params=c_0_params) -> List[Node]:
+def build(params: Spec.Params) -> List[Node]:
 	nodes: List[Node] = []
 	grid_layer: List[PassiveNode] = []
 	skim_layer: List[Node] = []

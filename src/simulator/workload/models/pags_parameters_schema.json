@@ -1,0 +1,188 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://simulator/workload/models/pags_parameters_schema.json",
+    "type": "object",
+    "required": [
+        "aod",
+        "skim",
+        "ana"
+    ],
+    "properties": {
+        "aod": {
+            "type": "object",
+            "required": [
+                "initial_size",
+                "final_size",
+                "growth_rate",
+                "file_size",
+                "schedule"
+            ],
+            "properties": {
+                "initial_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "final_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "growth_rate": {
+                    "$ref": "#/$defs/bytes_rate"
+                },
+                "file_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "schedule": {
+                    "type": "object",
+                    "required": [
+                        "normal_distribution"
+                    ],
+                    "properties": {
+                        "normal_distribution": {
+                            "type": "object",
+                            "required": [
+                                "mu",
+                                "sigma"
+                            ],
+                            "properties": {
+                                "mu": {
+                                    "type": "number"
+                                },
+                                "sigma": {
+                                    "type": "number"
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        },
+        "skim": {
+            "type": "object",
+            "required": [
+                "node_spread",
+                "read_fraction",
+                "job_read_size",
+                "output_fraction",
+                "file_size",
+                "delay_schedule"
+            ],
+            "properties": {
+                "node_spread": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "read_fraction": {
+                    "$ref": "#/$defs/fraction"
+                },
+                "job_read_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "output_fraction": {
+                    "$ref": "#/$defs/fraction"
+                },
+                "file_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "delay_schedule": {
+                    "type": "object",
+                    "required": [
+                        "lognormal_distribution"
+                    ],
+                    "properties": {
+                        "lognormal_distribution": {
+                            "type": "object",
+                            "required": [
+                                "mu",
+                                "sigma"
+                            ],
+                            "properties": {
+                                "mu": {
+                                    "type": "number"
+                                },
+                                "sigma": {
+                                    "type": "number"
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        },
+        "ana": {
+            "type": "object",
+            "required": [
+                "node_spread",
+                "read_fraction",
+                "job_read_size",
+                "output_fraction",
+                "file_size",
+                "schedule"
+            ],
+            "properties": {
+                "node_spread": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "read_fraction": {
+                    "$ref": "#/$defs/fraction"
+                },
+                "job_read_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "output_fraction": {
+                    "$ref": "#/$defs/fraction"
+                },
+                "file_size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "schedule": {
+                    "type": "object",
+                    "required": [
+                        "normal_distribution"
+                    ],
+                    "properties": {
+                        "normal_distribution": {
+                            "type": "object",
+                            "required": [
+                                "mu",
+                                "sigma"
+                            ],
+                            "properties": {
+                                "mu": {
+                                    "type": "number"
+                                },
+                                "sigma": {
+                                    "type": "number"
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false,
+    "$defs": {
+        "bytes_size": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B$"
+        },
+        "bytes_rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B\\/s$"
+        },
+        "fraction": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+        }
+    }
+}
