@@ -11,6 +11,10 @@ from .workload.models.pags import (
 	build as build_pags,
 	load_params as load_pags_params,
 )
+from .workload.models.pags_single import (
+	build as build_pags_single,
+	load_params as load_pags_single_params,
+)
 from .distributor import (
 	AccessAssignment,
 	Distributor,
@@ -149,6 +153,8 @@ def record(args: Any) -> None:
 def tasks_from_args(args: Any) -> Sequence[Task]:
 	if args.model == 'pags':
 		return build_pags(load_pags_params(args.model_params_file))
+	elif args.model == 'pags-single':
+		return build_pags_single(load_pags_single_params(args.model_params_file))
 	else:
 		raise NotImplementedError
 
