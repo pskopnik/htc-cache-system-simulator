@@ -1,0 +1,56 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://simulator/workload/models/random_parameters_schema.json",
+    "type": "object",
+    "required": [
+        "data_set",
+        "no_of_tasks",
+        "read_fraction",
+        "submit_rate"
+    ],
+    "properties": {
+        "data_set": {
+            "$id": "#data_set",
+            "type": "object",
+            "required": [
+                "size",
+                "file_size"
+            ],
+            "properties": {
+                "size": {
+                    "$ref": "#/$defs/bytes_size"
+                },
+                "file_size": {
+                    "$ref": "#/$defs/bytes_size"
+                }
+            },
+            "additionalProperties": false
+        },
+        "no_of_tasks": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "read_fraction": {
+            "$ref": "#/$defs/fraction"
+        },
+        "submit_rate": {
+            "$ref": "#/$defs/bytes_rate"
+        }
+    },
+    "additionalProperties": false,
+    "$defs": {
+        "bytes_size": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B$"
+        },
+        "bytes_rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)? ([KMGTPEZY]?i)?B\\/s$"
+        },
+        "fraction": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+        }
+    }
+}

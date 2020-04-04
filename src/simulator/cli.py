@@ -15,6 +15,10 @@ from .workload.models.pags_single import (
 	build as build_pags_single,
 	load_params as load_pags_single_params,
 )
+from .workload.models.random import (
+	build as build_random,
+	load_params as load_random_params,
+)
 from .distributor import (
 	AccessAssignment,
 	Distributor,
@@ -155,6 +159,8 @@ def tasks_from_args(args: Any) -> Sequence[Task]:
 		return build_pags(load_pags_params(args.model_params_file))
 	elif args.model == 'pags-single':
 		return build_pags_single(load_pags_single_params(args.model_params_file))
+	elif args.model == 'random':
+		return build_random(load_random_params(args.model_params_file))
 	else:
 		raise NotImplementedError
 
