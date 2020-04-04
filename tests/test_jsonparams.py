@@ -18,19 +18,19 @@ def test_parse_bytes_rate() -> None:
 	assert parse_bytes_rate('0 GiB/s') == 0
 
 	with pytest.raises(ValueError):
-		parse_bytes_size('0')
+		parse_bytes_rate('0')
 	with pytest.raises(ValueError):
-		parse_bytes_size('1.5 MiB')
+		parse_bytes_rate('1.5 MiB')
 	with pytest.raises(ValueError):
-		parse_bytes_size('200 GB/s')
+		parse_bytes_rate('200 GB/s')
 	with pytest.raises(ValueError):
-		parse_bytes_size('.1 GiB/s')
+		parse_bytes_rate('.1 GiB/s')
 	with pytest.raises(ValueError):
-		parse_bytes_size('-200 GiB/s')
+		parse_bytes_rate('-200 GiB/s')
 	with pytest.raises(ValueError):
-		parse_bytes_size('GiB/s 200')
+		parse_bytes_rate('GiB/s 200')
 
-def test_parse_bytes_rate() -> None:
+def test_parse_bytes_size() -> None:
 	assert parse_bytes_size('0 B') == 0
 	assert parse_bytes_size('1 B') == 1
 	assert parse_bytes_size('1 iB') == 1
