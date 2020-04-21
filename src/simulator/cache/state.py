@@ -1,5 +1,5 @@
 import abc
-from typing import Iterable, Iterator, Optional
+from typing import Iterable, Iterator, List, Optional
 
 from .accesses import SimpleAccessReader
 from .processor import AccessInfo, OfflineProcessor, OnlineProcessor
@@ -72,6 +72,7 @@ class StateDrivenProcessor(object):
 		ind = self._ind
 		self._ind += 1
 
+		file_hit = self._storage.contains_file(access.file)
 		requested_bytes = sum(part_bytes for part_ind, part_bytes in access.parts)
 		contained_bytes = self._storage.contained_bytes(access.file, access.parts)
 		missing_bytes = requested_bytes - contained_bytes
@@ -80,16 +81,19 @@ class StateDrivenProcessor(object):
 		if missing_bytes == 0:
 			info = AccessInfo(
 				access,
+				True,
 				contained_bytes,
 				missing_bytes,
 				0,
 				0,
 				in_cache_bytes,
+				[],
 			)
 			self._state.process_access(access.file, ind, False, info)
 			return info
 
 		free_bytes = self._storage.free_bytes
+		evicted_files: List[FileID] = []
 		evicted_bytes = 0
 
 		while free_bytes < missing_bytes:
@@ -106,6 +110,7 @@ class StateDrivenProcessor(object):
 			):
 				evicted_file_bytes = self._storage.evict(eviction_candidate)
 
+				evicted_files.append(eviction_candidate)
 				evicted_bytes += evicted_file_bytes
 				free_bytes += evicted_file_bytes
 
@@ -126,11 +131,13 @@ class StateDrivenProcessor(object):
 
 		info = AccessInfo(
 			access,
+			file_hit,
 			contained_bytes,
 			missing_bytes,
 			placed_bytes,
 			evicted_bytes,
 			total_bytes,
+			evicted_files,
 		)
 		# If any byte is in cache, the state tracks the file
 		ensure = in_cache_bytes == 0

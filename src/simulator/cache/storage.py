@@ -1,6 +1,6 @@
 from typing import Dict, List, Sequence
 
-from ..workload import FileID, PartSpec
+from ..workload import BytesSize, FileID, PartInd, PartSpec
 
 
 class InsufficientFreeSpace(Exception):
@@ -8,21 +8,21 @@ class InsufficientFreeSpace(Exception):
 
 
 class Storage(object):
-	def __init__(self, total_bytes: int):
-		self._total_bytes: int = total_bytes
-		self._used_bytes: int = 0
-		self._files: Dict[FileID, Dict[int, int]] = {}
+	def __init__(self, total_bytes: BytesSize):
+		self._total_bytes: BytesSize = total_bytes
+		self._used_bytes: BytesSize = 0
+		self._files: Dict[FileID, Dict[PartInd, BytesSize]] = {}
 
 	@property
-	def total_bytes(self) -> int:
+	def total_bytes(self) -> BytesSize:
 		return self._total_bytes
 
 	@property
-	def used_bytes(self) -> int:
+	def used_bytes(self) -> BytesSize:
 		return self._used_bytes
 
 	@property
-	def free_bytes(self) -> int:
+	def free_bytes(self) -> BytesSize:
 		return self._total_bytes - self._used_bytes
 
 	def parts(self, file: FileID) -> List[PartSpec]:
@@ -34,6 +34,9 @@ class Storage(object):
 			return []
 
 		return sorted((part_ind, part_bytes) for part_ind, part_bytes in file_parts.items())
+
+	def contains_file(self, file: FileID) -> bool:
+		return file in self._files
 
 	def contains(self, file: FileID, parts: Sequence[PartSpec]) -> bool:
 		try:
@@ -47,7 +50,7 @@ class Storage(object):
 
 		return True
 
-	def contained_bytes(self, file: FileID, parts: Sequence[PartSpec]) -> int:
+	def contained_bytes(self, file: FileID, parts: Sequence[PartSpec]) -> BytesSize:
 		try:
 			file_parts = self._files[file]
 		except KeyError:
@@ -57,15 +60,16 @@ class Storage(object):
 			min(file_parts.get(part_ind, 0), part_bytes) for part_ind, part_bytes in parts
 		)
 
-	def missing_bytes(self, file: FileID, parts: Sequence[PartSpec]) -> int:
+	def missing_bytes(self, file: FileID, parts: Sequence[PartSpec]) -> BytesSize:
 		requested_bytes = sum(part_bytes for part_ind, part_bytes in parts)
 
 		return requested_bytes - self.contained_bytes(file, parts)
 
-	def evict(self, file: FileID) -> int:
+	def evict(self, file: FileID) -> BytesSize:
 		"""Evicts all parts of file from the storage.
 
-		Returns: Number of bytes freed from the storage.
+		Returns:
+			Number of bytes evicted from the storage.
 		"""
 		try:
 			file_parts = self._files[file]
@@ -79,10 +83,12 @@ class Storage(object):
 
 		return evicted_bytes
 
-	def place(self, file: FileID, parts: Sequence[PartSpec]) -> int:
-		"""Places the passed parts of files in the storage.
 
-		Returns: Number of bytes added to the storage.
+	def place(self, file: FileID, parts: Sequence[PartSpec]) -> BytesSize:
+		"""Places the passed parts of file in the storage.
+
+		Returns:
+			Number of bytes added to the storage.
 		"""
 		missing_bytes = self.missing_bytes(file, parts)
 		if self.free_bytes < missing_bytes:
@@ -100,4 +106,3 @@ class Storage(object):
 		self._used_bytes += missing_bytes
 
 		return missing_bytes
-

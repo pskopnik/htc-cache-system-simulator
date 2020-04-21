@@ -1,36 +1,42 @@
 import abc
 from collections import deque
-from typing import Any, cast, Deque, Generator, Iterable, Iterator, List, Optional
+from typing import Any, cast, Deque, Generator, Iterable, Iterator, List, Optional, Sequence
 
 from .accesses import SimpleAccessReader
-from ..workload import Access, TimeStamp
+from ..workload import Access, FileID, TimeStamp
 
 
 class AccessInfo(object):
 	__slots__ = [
 		'access',
+		'file_hit',
 		'bytes_hit',
 		'bytes_missed',
 		'bytes_added',
 		'bytes_removed',
 		'total_bytes',
+		'evicted_files',
 	]
 
 	def __init__(
 		self,
 		access: Access,
+		file_hit: bool,
 		bytes_hit: int,
 		bytes_missed: int,
 		bytes_added: int,
 		bytes_removed: int,
 		total_bytes: int,
+		evicted_files: Sequence[FileID],
 	):
 		self.access: Access = access
+		self.file_hit: bool = file_hit
 		self.bytes_hit: int = bytes_hit
 		self.bytes_missed: int = bytes_missed
 		self.bytes_added: int = bytes_added
 		self.bytes_removed: int = bytes_removed
 		self.total_bytes: int = total_bytes
+		self.evicted_files: Sequence[FileID] = evicted_files
 
 	@property
 	def bytes_requested(self) -> int:

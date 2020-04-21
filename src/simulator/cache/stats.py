@@ -174,7 +174,7 @@ class StatsCollector(object):
 		file_stats.bytes_missed += access_info.bytes_missed
 		file_stats.bytes_added += access_info.bytes_added
 
-		if access_info.total_bytes - access_info.bytes_added > 0:
+		if access_info.file_hit:
 			file_stats.hits += 1
 			self._total_stats.files_hit += 1
 		else:
