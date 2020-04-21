@@ -11,10 +11,10 @@ PartInd = int
 PartSpec = Tuple[PartInd, BytesSize] # (part_ind, bytes_read)
 
 
-class AccessScheme(object):
+class AccessRequest(object):
 	__slots__ = ['file', 'parts']
 
-	def __init__(self, file: FileID, parts: Sequence[PartSpec]):
+	def __init__(self, file: FileID, parts: Sequence[PartSpec]) -> None:
 		self.file: FileID = file
 		self.parts: Sequence[PartSpec] = parts
 
@@ -22,22 +22,22 @@ class AccessScheme(object):
 class Access(object):
 	__slots__ = ['access_ts', 'file', 'parts']
 
-	def __init__(self, access_ts: TimeStamp, file: FileID, parts: Sequence[PartSpec]):
+	def __init__(self, access_ts: TimeStamp, file: FileID, parts: Sequence[PartSpec]) -> None:
 		self.access_ts: TimeStamp = access_ts
 		self.file: FileID = file
 		self.parts: Sequence[PartSpec] = parts
 
 
 class Job(object):
-	__slots__ = ['submit_ts', 'access_schemes']
+	__slots__ = ['submit_ts', 'access_requests']
 
-	def __init__(self, submit_ts: Optional[TimeStamp], access_schemes: Sequence[AccessScheme]):
+	def __init__(self, submit_ts: Optional[TimeStamp], access_requests: Sequence[AccessRequest]) -> None:
 		self.submit_ts: Optional[TimeStamp] = submit_ts # TODO: define semantics with regards to optionality
-		self.access_schemes: Sequence[AccessScheme] = access_schemes
+		self.access_requests: Sequence[AccessRequest] = access_requests
 
 
 class Submitter(abc.ABC):
-	def __init__(self, start_ts: TimeStamp, origin: Optional[Any]=None):
+	def __init__(self, start_ts: TimeStamp, origin: Optional[Any]=None) -> None:
 		self.start_ts: TimeStamp = start_ts
 		self._origin: Optional[Any] = origin
 

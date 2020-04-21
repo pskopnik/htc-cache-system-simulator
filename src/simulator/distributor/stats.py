@@ -1,26 +1,26 @@
 from typing import Dict, Iterable, Iterator, List, Union
 
-from ..workload import Access, AccessScheme, FileID, Job, Submitter, Task
+from ..workload import Access, AccessRequest, BytesSize, FileID, Job, PartInd, Submitter, Task
 
 
 class PartStats(object):
 	__slots__ = ['ind', 'accesses', 'total_bytes_accessed', 'unique_bytes_accessed']
 
-	def __init__(self, ind: int):
-		self.ind: int = ind
+	def __init__(self, ind: PartInd) -> None:
+		self.ind: PartInd = ind
 		self.accesses: int = 0
-		self.total_bytes_accessed: int = 0
-		self.unique_bytes_accessed: int = 0
+		self.total_bytes_accessed: BytesSize = 0
+		self.unique_bytes_accessed: BytesSize = 0
 
 
 class FileStats(object):
 	__slots__ = ['id', 'accesses', 'total_bytes_accessed', 'unique_bytes_accessed', 'parts']
 
-	def __init__(self, id: FileID):
+	def __init__(self, id: FileID) -> None:
 		self.id: FileID = id
 		self.accesses: int = 0
-		self.total_bytes_accessed: int = 0
-		self.unique_bytes_accessed: int = 0
+		self.total_bytes_accessed: BytesSize = 0
+		self.unique_bytes_accessed: BytesSize = 0
 		self.parts: List[PartStats] = []
 
 
@@ -29,8 +29,8 @@ class TotalStats(object):
 
 	def __init__(self) -> None:
 		self.accesses: int = 0
-		self.total_bytes_accessed: int = 0
-		self.unique_bytes_accessed: int = 0
+		self.total_bytes_accessed: BytesSize = 0
+		self.unique_bytes_accessed: BytesSize = 0
 
 
 class StatsCollector(object):

@@ -2,7 +2,7 @@ from typing import Dict, Iterable, Iterator, List, Union
 
 # from ..distributor import stats
 from .processor import AccessInfo
-from ..workload import Access, AccessScheme, FileID, Job, Submitter, Task
+from ..workload import Access, AccessRequest, FileID, Job, Submitter, Task
 
 
 # class FileStats(stats.FileStats):
@@ -131,7 +131,7 @@ class StatsCollector(object):
 			self._process_access_info(access_info)
 			yield access_info
 
-	def _process_access(self, access: Union[Access, AccessScheme]) -> None:
+	def _process_access(self, access: Union[Access, AccessRequest]) -> None:
 		try:
 			file_stats = self._files_stats[access.file]
 		except KeyError:

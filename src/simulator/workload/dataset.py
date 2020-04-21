@@ -1,6 +1,6 @@
 from typing import Any, Iterable, Iterator, List, Optional
 import math
-from . import AccessScheme, FileID, Job, PartSpec, PartsGenerator, Submitter, TimeStamp
+from . import AccessRequest, FileID, Job, PartSpec, PartsGenerator, Submitter, TimeStamp
 from itertools import repeat
 from ..utils import repeat_each
 
@@ -35,7 +35,13 @@ class DataSet(object):
 	The constructor initialises the list of files if size is greater than 0.
 	"""
 
-	def __init__(self, file_size: int=0, files_per_directory: int=0, name: Optional[str]=None, size: int=0) -> None:
+	def __init__(
+		self,
+		file_size: int = 0,
+		files_per_directory: int = 0,
+		name: Optional[str] = None,
+		size: int = 0,
+	) -> None:
 		self._file_size: int = file_size
 		self._files_per_directory: int = files_per_directory
 		self._name: Optional[str] = name
@@ -186,7 +192,7 @@ class DataSetSubmitter(Submitter):
 			parts: List[PartSpec],
 			files_per_job: int,
 			origin: Optional[Any] = None
-		):
+		) -> None:
 			self._data_set = data_set
 			self._parts = parts
 			self._files_per_job = files_per_job
@@ -217,16 +223,16 @@ class DataSetSubmitter(Submitter):
 		self._files_per_job: int = files_per_job
 
 	def __iter__(self) -> Iterator[Job]:
-		access_schemes: List[AccessScheme] = []
+		access_requests: List[AccessRequest] = []
 
 		for file in self._data_set.file_list:
-			access_schemes.append(AccessScheme(file, self._parts))
-			if len(access_schemes) == self._files_per_job:
-				yield Job(None, access_schemes.copy())
-				access_schemes.clear()
+			access_requests.append(AccessRequest(file, self._parts))
+			if len(access_requests) == self._files_per_job:
+				yield Job(None, access_requests.copy())
+				access_requests.clear()
 
-		if len(access_schemes) > 0:
-			yield Job(None, access_schemes.copy())
+		if len(access_requests) > 0:
+			yield Job(None, access_requests.copy())
 
 	@classmethod
 	def scaffold(
@@ -249,7 +255,7 @@ class DataSetSubmitter(Submitter):
 		return cls.Scaffold(data_set, parts, files_per_job, origin=origin)
 
 
-# def example():
+# def example() -> Iterator[DataSetSubmitter]:
 # 	schemes_generator = NonCorrelatedSchemesGenerator(number)
 # 	data_set = DataSet(2 ** (10 * 4), 10 * 2 ** (10 * 2))
 

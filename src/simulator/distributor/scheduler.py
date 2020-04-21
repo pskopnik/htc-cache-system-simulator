@@ -1,7 +1,7 @@
 import heapq
 from typing import cast, Iterable, Iterator, List, Tuple
 import math
-from ..workload import Access, AccessScheme, Job, TimeStamp
+from ..workload import Access, AccessRequest, Job, TimeStamp
 from ..events import EventIterator
 
 
@@ -70,7 +70,7 @@ class JobScheduler(object):
 			job_start_ts = max(cast(int, job.submit_ts), free_ts)
 			self.latest_event_ts = job_start_ts
 			total_bytes_read = sum(
-				bytes_read for scheme in job.access_schemes for _, bytes_read in scheme.parts
+				bytes_read for request in job.access_requests for _, bytes_read in request.parts
 			)
 			job_end_ts = job_start_ts + math.ceil(total_bytes_read / core.node_spec.core_throughput)
 
@@ -112,7 +112,7 @@ class AccessScheduler(object):
 			assignment_it,
 			lambda assignment: assignment.start_ts,
 		)
-		self._heap: List[Tuple[TimeStamp, int, JobAssignment, int, Iterator[AccessScheme]]] = []
+		self._heap: List[Tuple[TimeStamp, int, JobAssignment, int, Iterator[AccessRequest]]] = []
 		self._queue_index: int = 0
 		self.latest_event_ts: int = 0
 
@@ -126,14 +126,14 @@ class AccessScheduler(object):
 			ts, _, assignment, bytes_read, it = self._heap[0]
 			self.latest_event_ts = ts
 			try:
-				scheme = next(it)
+				request = next(it)
 			except StopIteration:
-				# All schemes processed, this job is done
+				# All requests processed, this job is done
 				heapq.heappop(self._heap)
 				continue
 
 			bytes_read += sum(
-				bytes_read for _, bytes_read in scheme.parts
+				bytes_read for _, bytes_read in request.parts
 			)
 			next_access_ts = assignment.start_ts + math.floor(
 				bytes_read / assignment.core.node_spec.core_throughput,
@@ -150,8 +150,8 @@ class AccessScheduler(object):
 			yield AccessAssignment(
 				Access(
 					ts,
-					scheme.file,
-					scheme.parts,
+					request.file,
+					request.parts,
 				),
 				assignment.core.node_spec.cache_proc,
 			)
@@ -183,7 +183,7 @@ class AccessScheduler(object):
 			self._queue_index,
 			assignment,
 			0,
-			iter(assignment.job.access_schemes),
+			iter(assignment.job.access_requests),
 		))
 		self._queue_index += 1
 

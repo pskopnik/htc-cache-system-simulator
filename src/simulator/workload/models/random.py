@@ -4,7 +4,16 @@ from typing import AnyStr, cast, IO, Iterator, List, Optional, Tuple
 from typing_extensions import TypedDict
 import random
 
-from .. import AccessScheme, BytesSize, FileID, Job, PartsGenerator, PartSpec, Submitter, TimeStamp
+from .. import (
+	AccessRequest,
+	BytesSize,
+	FileID,
+	Job,
+	PartsGenerator,
+	PartSpec,
+	Submitter,
+	TimeStamp,
+)
 from ..nodes import Node
 from ..dataset import DataSet
 from ..jsonparams import load_validate_transform
@@ -29,16 +38,16 @@ class RandomNode(Node):
 			# cached_parts = self._node._parts_generator.parts(cached_file_size)
 			# cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
 
-			def create_access_scheme(file: FileID) -> Tuple[AccessScheme, BytesSize]:
+			def create_access_scheme(file: FileID) -> Tuple[AccessRequest, BytesSize]:
 				# nonlocal data_set, cached_file_size, cached_bytes_accessed, cached_parts
 
 				parts = random.choice(self._node._schemes)
-				return AccessScheme(file, parts), sum(byte_count for _, byte_count in parts)
+				return AccessRequest(file, parts), sum(byte_count for _, byte_count in parts)
 				# if data_set.file_size != cached_file_size:
 				# 	cached_file_size = data_set.file_size
 				# 	cached_parts = self._node._parts_generator.parts(cached_file_size)
 				# 	cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
-				# return AccessScheme(file, cached_parts), cached_bytes_accessed
+				# return AccessRequest(file, cached_parts), cached_bytes_accessed
 
 			total_submitted: int = 0
 			ts: TimeStamp = 0

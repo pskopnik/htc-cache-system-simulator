@@ -1,12 +1,12 @@
 from typing import List
-from . import AccessScheme, FileID, PartSpec, PartsGenerator
+from . import AccessRequest, FileID, PartSpec, PartsGenerator
 
 
 class NonCorrelatedSchemesGenerator(object):
-	def __init__(self, number: int, fraction: float):
-		self._number = number
-		self._fraction = fraction
-		self._parts_number = 2 ** number
+	def __init__(self, number: int, fraction: float) -> None:
+		self._number: int = number
+		self._fraction: float = fraction
+		self._parts_number: int = 2 ** number
 
 	@property
 	def number(self) -> int:
@@ -37,19 +37,19 @@ class NonCorrelatedSchemesGenerator(object):
 
 		return parts
 
-	def access_scheme(self, index: int, file: FileID, total_bytes: int) -> AccessScheme:
-		return AccessScheme(file, self.parts(index, total_bytes))
+	def access_request(self, index: int, file: FileID, total_bytes: int) -> AccessRequest:
+		return AccessRequest(file, self.parts(index, total_bytes))
 
 	class WithIndex(PartsGenerator):
-		def __init__(self, generator: 'NonCorrelatedSchemesGenerator', index: int):
+		def __init__(self, generator: 'NonCorrelatedSchemesGenerator', index: int) -> None:
 			self._generator: NonCorrelatedSchemesGenerator = generator
 			self._index: int = index
 
 		def parts(self, total_bytes: int) -> List[PartSpec]:
 			return self._generator.parts(self._index, total_bytes)
 
-		def access_scheme(self, file: FileID, total_bytes: int) -> AccessScheme:
-			return self._generator.access_scheme(self._index, file, total_bytes)
+		def access_request(self, file: FileID, total_bytes: int) -> AccessRequest:
+			return self._generator.access_request(self._index, file, total_bytes)
 
 	def with_index(self, index: int) -> WithIndex:
 		return self.WithIndex(self, index)
