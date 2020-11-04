@@ -19,18 +19,18 @@ from .workload.models.random import (
 	build as build_random,
 	load_params as load_random_params,
 )
+from .workload.stats import StatsCollector, StatsCounters as WorkloadStatsCounters
 from .distributor import (
 	AccessAssignment,
 	Distributor,
 	NodeSpec,
-	StatsCollector as DistributorStatsCollector,
 )
 
 from . import recorder
 
 from .cache import CacheSystem, OnlineCacheSystem, OfflineCacheSystem
 from .cache.processor import Processor, OfflineProcessor
-from .cache.stats import StatsCollector as CacheStatsCollector
+from .cache.stats import StatsCounters as CacheStatsCounters
 from .cache.storage import Storage
 
 from .cache.algorithms.arc import ARCBit
@@ -193,7 +193,7 @@ def replay(args: Any) -> None:
 			header = args.stats_header,
 		)
 
-def write_cache_stats_as_csv(stats: CacheStatsCollector, file: TextIO, header: bool=True) -> None:
+def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO, header: bool=True) -> None:
 	writer = csv.writer(file)
 	if header:
 		writer.writerow([
@@ -217,27 +217,27 @@ def write_cache_stats_as_csv(stats: CacheStatsCollector, file: TextIO, header: b
 			# 'theoretically_best_byte_miss_rate',
 		])
 	writer.writerow([
-		stats._total_stats.accesses,
-		len(stats._files_stats),
-		stats._total_stats.total_bytes_accessed,
-		stats._total_stats.unique_bytes_accessed,
-		stats._total_stats.files_hit,
-		stats._total_stats.files_missed,
-		stats._total_stats.bytes_hit,
-		stats._total_stats.bytes_missed,
-		stats._total_stats.bytes_added,
-		stats._total_stats.bytes_removed,
-		# stats._total_stats.files_hit / stats._total_stats.accesses,
-		# stats._total_stats.files_missed / stats._total_stats.accesses,
-		# stats._total_stats.bytes_hit / stats._total_stats.total_bytes_accessed,
-		# stats._total_stats.bytes_missed / stats._total_stats.total_bytes_accessed,
-		# (stats._total_stats.accesses - stats._total_stats.files) / stats._total_stats.accesses,
-		# stats._total_stats.files / stats._total_stats.accesses,
-		# (stats._total_stats.total_bytes_accessed - stats._total_stats.unique_bytes_accessed) / stats._total_stats.total_bytes_accessed,
-		# stats._total_stats.unique_bytes_accessed / stats._total_stats.total_bytes_accessed,
+		counters.total_stats.accesses,
+		len(counters.files_stats),
+		counters.total_stats.total_bytes_accessed,
+		counters.total_stats.unique_bytes_accessed,
+		counters.total_stats.files_hit,
+		counters.total_stats.files_missed,
+		counters.total_stats.bytes_hit,
+		counters.total_stats.bytes_missed,
+		counters.total_stats.bytes_added,
+		counters.total_stats.bytes_removed,
+		# counters.total_stats.files_hit / counters.total_stats.accesses,
+		# counters.total_stats.files_missed / counters.total_stats.accesses,
+		# counters.total_stats.bytes_hit / counters.total_stats.total_bytes_accessed,
+		# counters.total_stats.bytes_missed / counters.total_stats.total_bytes_accessed,
+		# (counters.total_stats.accesses - counters.total_stats.files) / counters.total_stats.accesses,
+		# counters.total_stats.files / counters.total_stats.accesses,
+		# (counters.total_stats.total_bytes_accessed - counters.total_stats.unique_bytes_accessed) / counters.total_stats.total_bytes_accessed,
+		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
 	])
 
-def write_distributor_stats_as_csv(stats: DistributorStatsCollector, file: TextIO, header: bool=True) -> None:
+def write_distributor_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO, header: bool=True) -> None:
 	writer = csv.writer(file)
 	if header:
 		writer.writerow([
@@ -247,10 +247,10 @@ def write_distributor_stats_as_csv(stats: DistributorStatsCollector, file: TextI
 			'unique_bytes_accessed',
 		])
 	writer.writerow([
-		stats._total_stats.accesses,
-		len(stats._files_stats),
-		stats._total_stats.total_bytes_accessed,
-		stats._total_stats.unique_bytes_accessed,
+		counters.total_stats.accesses,
+		len(counters.files_stats),
+		counters.total_stats.total_bytes_accessed,
+		counters.total_stats.unique_bytes_accessed,
 	])
 
 def cache_system_from_args(args: Any) -> CacheSystem:

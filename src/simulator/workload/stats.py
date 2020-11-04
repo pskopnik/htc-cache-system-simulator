@@ -1,6 +1,6 @@
-from typing import Dict, Iterable, Iterator, List, Union
+from typing import Dict, Iterable, Iterator, List, Union, ValuesView
 
-from ..workload import Access, AccessRequest, BytesSize, FileID, Job, PartInd, Submitter, Task
+from . import Access, AccessRequest, BytesSize, FileID, PartInd
 
 
 class PartStats(object):
@@ -11,6 +11,11 @@ class PartStats(object):
 		self.accesses: int = 0
 		self.total_bytes_accessed: BytesSize = 0
 		self.unique_bytes_accessed: BytesSize = 0
+
+	def reset(self) -> None:
+		self.accesses = 0
+		self.total_bytes_accessed = 0
+		self.unique_bytes_accessed = 0
 
 
 class FileStats(object):
@@ -23,6 +28,12 @@ class FileStats(object):
 		self.unique_bytes_accessed: BytesSize = 0
 		self.parts: List[PartStats] = []
 
+	def reset(self) -> None:
+		self.accesses = 0
+		self.total_bytes_accessed = 0
+		self.unique_bytes_accessed = 0
+		self.parts = []
+
 
 class TotalStats(object):
 	__slots__ = ['accesses', 'total_bytes_accessed', 'unique_bytes_accessed']
@@ -32,24 +43,43 @@ class TotalStats(object):
 		self.total_bytes_accessed: BytesSize = 0
 		self.unique_bytes_accessed: BytesSize = 0
 
+	def reset(self) -> None:
+		self.accesses = 0
+		self.total_bytes_accessed = 0
+		self.unique_bytes_accessed = 0
 
-class StatsCollector(object):
-	def __init__(self, jobs_it: Iterable[Job]):
-		self._jobs_it: Iterator[Job] = iter(jobs_it)
+
+class StatsCounters(object):
+	def __init__(self) -> None:
 		self._files_stats: Dict[FileID, FileStats] = {}
 		self._total_stats: TotalStats = TotalStats()
 
-	def __iter__(self) -> Iterator[Job]:
-		for job in self._jobs_it:
-			for scheme in job.access_schemes:
-				self._process_access(scheme)
-			yield job
+	@property
+	def total_stats(self) -> TotalStats:
+		return self._total_stats
 
-	def _process_access(self, access: Union[Access, AccessScheme]) -> None:
+	@property
+	def files_stats(self) -> ValuesView[FileStats]:
+		return self._files_stats.values()
+
+	def file_stats(self, file: FileID) -> FileStats:
+		return self._files_stats[file]
+
+	def reset(self) -> None:
+		self._files_stats.clear()
+		self._total_stats.reset()
+
+	def _new_file_stats(self, id: FileID) -> FileStats:
+		return FileStats(id)
+
+	def _new_part_stats(self, ind: PartInd) -> PartStats:
+		return PartStats(ind)
+
+	def process_access(self, access: Union[Access, AccessRequest]) -> None:
 		try:
 			file_stats = self._files_stats[access.file]
 		except KeyError:
-			file_stats = FileStats(access.file)
+			file_stats = self._new_file_stats(access.file)
 			self._files_stats[access.file] = file_stats
 
 		file_stats.accesses += 1
@@ -61,7 +91,7 @@ class StatsCollector(object):
 			except IndexError:
 				l = len(file_stats.parts)
 				file_stats.parts.extend(
-					PartStats(l + i) for i in range(ind + 1 - l)
+					self._new_part_stats(l + i) for i in range(ind + 1 - l)
 				)
 				part_stats = file_stats.parts[ind]
 
@@ -76,3 +106,18 @@ class StatsCollector(object):
 			part_stats.total_bytes_accessed += bytes_read
 			file_stats.total_bytes_accessed += bytes_read
 			self._total_stats.total_bytes_accessed += bytes_read
+
+
+class StatsCollector(object):
+	def __init__(self, accesses_it: Iterable[Access]) -> None:
+		self._accesses_it: Iterator[Access] = iter(accesses_it)
+		self._counters: StatsCounters = StatsCounters()
+
+	@property
+	def stats(self) -> StatsCounters:
+		return self._counters
+
+	def __iter__(self) -> Iterator[Access]:
+		for access in self._accesses_it:
+			self._counters.process_access(access)
+			yield access
