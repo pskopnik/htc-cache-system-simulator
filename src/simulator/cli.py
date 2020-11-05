@@ -148,11 +148,7 @@ def record(args: Any) -> None:
 	recorder.record_path(args.file_path, access_it)
 
 	if args.stats_file is not None:
-		write_distributor_stats_as_csv(
-			distributor.stats,
-			args.stats_file,
-			header = args.stats_header,
-		)
+		write_distributor_stats_as_csv(distributor.stats, args.stats_file)
 
 def tasks_from_args(args: Any) -> Sequence[Task]:
 	if args.model == 'pags':
@@ -187,35 +183,32 @@ def replay(args: Any) -> None:
 		consume(cache_sys)
 
 	if args.stats_file is not None:
-		write_cache_stats_as_csv(
-			cache_sys.stats,
-			args.stats_file,
-			header = args.stats_header,
-		)
+		write_cache_stats_as_csv(cache_sys.stats, args.stats_file)
 
-def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO, header: bool=True) -> None:
+def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO) -> None:
 	writer = csv.writer(file)
-	if header:
-		writer.writerow([
-			'accesses',
-			'files',
-			'total_bytes_accessed',
-			'unique_bytes_accessed',
-			'files_hit',
-			'files_missed',
-			'bytes_hit',
-			'bytes_missed',
-			'bytes_added',
-			'bytes_removed',
-			# 'hit_rate',
-			# 'miss_rate',
-			# 'byte_hit_rate',
-			# 'byte_miss_rate',
-			# 'theoretically_best_hit_rate',
-			# 'theoretically_best_miss_rate',
-			# 'theoretically_best_byte_hit_rate',
-			# 'theoretically_best_byte_miss_rate',
-		])
+
+	writer.writerow([
+		'accesses',
+		'files',
+		'total_bytes_accessed',
+		'unique_bytes_accessed',
+		'files_hit',
+		'files_missed',
+		'bytes_hit',
+		'bytes_missed',
+		'bytes_added',
+		'bytes_removed',
+		# 'hit_rate',
+		# 'miss_rate',
+		# 'byte_hit_rate',
+		# 'byte_miss_rate',
+		# 'theoretically_best_hit_rate',
+		# 'theoretically_best_miss_rate',
+		# 'theoretically_best_byte_hit_rate',
+		# 'theoretically_best_byte_miss_rate',
+	])
+
 	writer.writerow([
 		counters.total_stats.accesses,
 		len(counters.files_stats),
@@ -237,20 +230,29 @@ def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO, header:
 		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
 	])
 
-def write_distributor_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO, header: bool=True) -> None:
+def write_distributor_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO) -> None:
 	writer = csv.writer(file)
-	if header:
-		writer.writerow([
-			'accesses',
-			'files',
-			'total_bytes_accessed',
-			'unique_bytes_accessed',
-		])
+
+	writer.writerow([
+		'accesses',
+		'files',
+		'total_bytes_accessed',
+		'unique_bytes_accessed',
+		# 'theoretically_best_hit_rate',
+		# 'theoretically_best_miss_rate',
+		# 'theoretically_best_byte_hit_rate',
+		# 'theoretically_best_byte_miss_rate',
+	])
+
 	writer.writerow([
 		counters.total_stats.accesses,
 		len(counters.files_stats),
 		counters.total_stats.total_bytes_accessed,
 		counters.total_stats.unique_bytes_accessed,
+		# (counters.total_stats.accesses - counters.total_stats.files) / counters.total_stats.accesses,
+		# counters.total_stats.files / counters.total_stats.accesses,
+		# (counters.total_stats.total_bytes_accessed - counters.total_stats.unique_bytes_accessed) / counters.total_stats.total_bytes_accessed,
+		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
 	])
 
 def cache_system_from_args(args: Any) -> CacheSystem:
@@ -343,10 +345,9 @@ subparsers = parser.add_subparsers(dest='command', required=True)
 
 parser_record = subparsers.add_parser('record', help='Generate cache-seen accesses by jobs yielded by a workload generator and scheduled to a node set.')
 parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
-parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; has iterate as long as all limits hold semantic.')
-parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; has iterate as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
+parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; iterates as long as all limits hold semantic.')
+parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 parser_record.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the approximate aggregated access sequence stats are written as CSV.')
-parser_record.add_argument('--stats-no-header', action='store_false', dest='stats_header', help='disables CSV header row in --stats-file if set.')
 parser_record.add_argument('--model', required=True, type=str, help='workload model used to generate the workload.')
 parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file with containing the parameters for the workload model.')
 
@@ -354,8 +355,8 @@ parser_replay = subparsers.add_parser('replay', help='Perform cache algorithms o
 parser_replay.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')
 parser_replay.add_argument('--warm-up-accesses', type=int, help='number of accesses considered cache warm-up.') # all() or or() semantic? # may actually consume one access more
 parser_replay.add_argument('--warm-up-time', type=int, help='number of seconds considered cache warm-up.') # missing: unique bytes read, total bytes read
-parser_replay.add_argument('--process-accesses', type=int, help='number of accesses to be processed (including warm-up). Limit; has iterate as long as all limits hold semantic.')
-parser_replay.add_argument('--process-time', type=int, help='number of seconds to be processed (including warm-up). Limit; has iterate as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
+parser_replay.add_argument('--process-accesses', type=int, help='number of accesses to be processed (including warm-up). Limit; iterates as long as all limits hold semantic.')
+parser_replay.add_argument('--process-time', type=int, help='number of seconds to be processed (including warm-up). Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 parser_replay.add_argument('--cache-processor-count', type=int, default=1, help='number of simulated cache processors, must match recorded accesses.')
 parser_replay.add_argument('--cache-processor', required=True, type=str, help='cache processor type (algorithm to use) to be simulated.')
 parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to the each cache processor.')
@@ -363,7 +364,6 @@ parser_replay.add_argument('--storage-size', required=True, type=int, help='size
 parser_replay.add_argument('--non-shared-storage', action='store_false', dest='shared_storage', help='each cache processor receives its own storage volume if set.')
 parser_replay.add_argument('--cache-info-file', type=str, dest='cache_info_file_path', help='output file to which cache info data is written, i.e. hit and miss info for each access.')
 parser_replay.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the aggregated cache stats are written as CSV.')
-parser_replay.add_argument('--stats-no-header', action='store_false', dest='stats_header', help='disables CSV header row in --stats-file if set.')
 
 parser_convert_accesses_to_monitoring = subparsers.add_parser('convert-accesses-to-monitoring', help='Converts a file of access sequences to the same format as used for monitoring data (job trace).')
 parser_convert_accesses_to_monitoring.add_argument('-f', '--file', required=True, type=argparse.FileType('r'), help='input file from which the accesses are read.')
@@ -378,7 +378,7 @@ def main() -> None:
 	elif args.command == 'convert-accesses-to-monitoring':
 		convert_accesses_to_monitoring(args)
 	else:
-		raise NotImplementedError
+		raise NotImplementedError(f'No command {args.command!r}, see --help for usage info')
 
 if __name__ == '__main__':
 	main()
