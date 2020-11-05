@@ -84,6 +84,15 @@ def _reverse_replay(
 	begin_pos: int = 0,
 	end_pos: Optional[int] = None,
 ) -> Iterator[AccessAssignment]:
+	for line in _reverse_read_jsonl(file, begin_pos=begin_pos, end_pos=end_pos):
+		dct = orjson.loads(line)
+		yield _dct_to_assgnm(dct)
+
+def _reverse_read_jsonl(
+	file: BinaryIO,
+	begin_pos: int = 0,
+	end_pos: Optional[int] = None,
+) -> Iterator[bytes]:
 	if end_pos is not None:
 		file.seek(end_pos, SEEK_SET)
 	else:
@@ -117,18 +126,17 @@ def _reverse_replay(
 				if exhausted:
 					# at beginning of file, '\n' at -1
 					start_ind = 0
-					# TODO: is this if required or the result of invalid parameters?
-					# Could occur if the first chunk starts exactly at the file's start
+					# TODO: is this "if" required or the result of invalid parameters?
+					# Could occur if the first chunk starts exactly at the file's start??
 					if len(buf) == 0:
 						return
 				else:
 					# read previous chunk into buf
 					break
 
-			l = buf[start_ind:]
+			line = buf[start_ind:]
 			buf = buf[:start_ind]
-			dct = orjson.loads(l)
-			yield _dct_to_assgnm(dct)
+			yield line
 
 			if exhausted and start_ind == 0:
 				return
