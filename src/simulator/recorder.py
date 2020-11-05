@@ -233,11 +233,13 @@ def _access_info_to_dct(info: AccessInfo) -> Dict[str, Any]:
 			'file': info.access.file,
 			'parts': info.access.parts,
 		},
+		'file_hit': info.file_hit,
 		'bytes_hit': info.bytes_hit,
 		'bytes_missed': info.bytes_missed,
 		'bytes_added': info.bytes_added,
 		'bytes_removed': info.bytes_removed,
 		'total_bytes': info.total_bytes,
+		'evicted_files': info.evicted_files,
 	}
 
 def _dct_to_access_info(dct: Dict[str, Any]) -> AccessInfo:
@@ -248,11 +250,13 @@ def _dct_to_access_info(dct: Dict[str, Any]) -> AccessInfo:
 			access['file'],
 			list(map(cast('Callable[[Any], Tuple[int, int]]', tuple), access['parts'])),
 		),
+		dct['file_hit'],
 		dct['bytes_hit'],
 		dct['bytes_missed'],
 		dct['bytes_added'],
 		dct['bytes_removed'],
 		dct['total_bytes'],
+		dct['evicted_files'],
 	)
 
 
