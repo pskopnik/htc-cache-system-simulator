@@ -99,7 +99,7 @@ def _reverse_read_jsonl(
 		file.seek(0, SEEK_END)
 
 	buf = b''
-	chunk_size = 8 * 1024
+	chunk_size = 64 * 1024
 	exhausted = False
 	start_ind = 0
 
