@@ -2,7 +2,7 @@ import itertools
 import math
 from typing import AnyStr, cast, IO, Iterator, List, Optional, Tuple
 from typing_extensions import TypedDict
-import random
+from random import Random
 
 from .. import (
 	AccessRequest,
@@ -41,7 +41,7 @@ class RandomNode(Node):
 			def create_access_scheme(file: FileID) -> Tuple[AccessRequest, BytesSize]:
 				# nonlocal data_set, cached_file_size, cached_bytes_accessed, cached_parts
 
-				parts = random.choice(self._node._schemes)
+				parts = self._node._random.choice(self._node._schemes)
 				return AccessRequest(file, parts), sum(byte_count for _, byte_count in parts)
 				# if data_set.file_size != cached_file_size:
 				# 	cached_file_size = data_set.file_size
@@ -52,7 +52,7 @@ class RandomNode(Node):
 			total_submitted: int = 0
 			ts: TimeStamp = 0
 			for _ in itertools.repeat(None):
-				file = random.choice(data_set.file_list)
+				file = self._node._random.choice(data_set.file_list)
 
 				access_scheme, bytes_submitted = create_access_scheme(file)
 
@@ -68,6 +68,7 @@ class RandomNode(Node):
 		submit_rate: float,
 		schemes: List[List[PartSpec]],
 		# parts_generator: PartsGenerator,
+		random: Random,
 		name: Optional[str] = None,
 	) -> None:
 		super(RandomNode, self).__init__(name=name)
@@ -76,6 +77,7 @@ class RandomNode(Node):
 		self._submit_rate: float = submit_rate
 		self._schemes: List[List[PartSpec]] = schemes
 		#self._parts_generator: PartsGenerator = parts_generator
+		self._random: Random = random
 
 	def __iter__(self) -> Iterator[Submitter]:
 		yield RandomNode._Submitter(self)
@@ -115,7 +117,9 @@ example_params: Spec.Params = {
 	'submit_rate': 1 * MiB,
 }
 
-def build(params: Spec.Params) -> List[Node]:
+def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
+	random = Random(seed)
+
 	nodes: List[Node] = []
 
 	data_set = DataSet(
@@ -135,6 +139,7 @@ def build(params: Spec.Params) -> List[Node]:
 		params['submit_rate'], # submit_rate
 		[schemes_generator.parts(i, data_set.file_size) for i in range(params['no_of_tasks'])],
 		# schemes_generator.with_index(i), # parts_generator
+		random,
 		name = f'computing task',
 		# name = f'computing task #{i}',
 	)

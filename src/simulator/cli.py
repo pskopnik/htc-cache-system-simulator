@@ -152,11 +152,11 @@ def record(args: Any) -> None:
 
 def tasks_from_args(args: Any) -> Sequence[Task]:
 	if args.model == 'pags':
-		return build_pags(load_pags_params(args.model_params_file))
+		return build_pags(load_pags_params(args.model_params_file), seed=args.seed)
 	elif args.model == 'pags-single':
-		return build_pags_single(load_pags_single_params(args.model_params_file))
+		return build_pags_single(load_pags_single_params(args.model_params_file), seed=args.seed)
 	elif args.model == 'random':
-		return build_random(load_random_params(args.model_params_file))
+		return build_random(load_random_params(args.model_params_file), seed=args.seed)
 	else:
 		raise NotImplementedError
 
@@ -349,7 +349,8 @@ parser_record.add_argument('--generate-accesses', type=int, help='number of acce
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 parser_record.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the approximate aggregated access sequence stats are written as CSV.')
 parser_record.add_argument('--model', required=True, type=str, help='workload model used to generate the workload.')
-parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file with containing the parameters for the workload model.')
+parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file containing the parameters for the workload model.')
+parser_record.add_argument('--seed', type=int, help='Seed for initialising the pseudo-random number generator. If not passed a seed is chosen by the python default behaviour.')
 
 parser_replay = subparsers.add_parser('replay', help='Perform cache algorithms on a recorded sequence of accesses.')
 parser_replay.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')

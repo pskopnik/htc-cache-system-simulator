@@ -1,9 +1,9 @@
 import functools
 import itertools
 import math
-from typing import AnyStr, cast, IO, List
+from typing import AnyStr, cast, IO, List, Optional
 from typing_extensions import TypedDict
-import random
+from random import Random
 
 from .. import BytesRate, BytesSize
 from ..jsonparams import load_validate_transform
@@ -138,7 +138,9 @@ c_0_params: Spec.Params = {
 	},
 }
 
-def build(params: Spec.Params) -> List[Node]:
+def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
+	random = Random(seed)
+
 	nodes: List[Node] = []
 	grid_layer: List[PassiveNode] = []
 	skim_layer: List[Node] = []
