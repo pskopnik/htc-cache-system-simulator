@@ -5,7 +5,12 @@ import random
 from typing import cast, Iterable, Iterator, List, Sequence
 
 from simulator.workload import Access, FileID
-from simulator.dstructures.accessseq import ReuseTimer
+from simulator.dstructures.accessseq import (
+	change_to_active_bytes,
+	change_to_active_files,
+	ReuseTimer,
+	FullReuseIndex,
+)
 
 def access_seq_from_files(files: Iterable[FileID]) -> List[Access]:
 	def generator() -> Iterator[Access]:
@@ -53,3 +58,91 @@ def test_reuse_timer_random(n_accesses: int, n_files: int) -> None:
 	accesses = generate_access_seq(n_accesses, n_files)
 	r = ReuseTimer(accesses)
 	r._verify(accesses)
+
+def test_full_reuse_index_accessed_after_and_before() -> None:
+	accesses = [
+		Access(0, 'a', [(0, 1)]),
+		Access(1, 'a', [(0, 1), (1, 3)]),
+		Access(2, 'a', [(1, 3)]),
+		Access(3, 'b', [(0, 3)]),
+		Access(4, 'b', [(0, 2)]),
+		Access(5, 'b', [(0, 1)]),
+	]
+	fri = FullReuseIndex(accesses)
+
+	assert fri.accessed_after(0, fri.parts(0)) == [(0, 1)]
+	assert fri.accessed_after(1, fri.parts(1)) == [(1, 3)]
+	assert fri.accessed_after(2, fri.parts(2)) == []
+	assert fri.accessed_after(3, fri.parts(3)) == [(0, 2)]
+	assert fri.accessed_after(4, fri.parts(4)) == [(0, 1)]
+	assert fri.accessed_after(5, fri.parts(5)) == []
+
+	assert fri.accessed_before(0, fri.parts(0)) == []
+	assert fri.accessed_before(1, fri.parts(1)) == [(0, 1)]
+	assert fri.accessed_before(2, fri.parts(2)) == [(1, 3)]
+	assert fri.accessed_before(3, fri.parts(3)) == []
+	assert fri.accessed_before(4, fri.parts(4)) == [(0, 2)]
+	assert fri.accessed_before(5, fri.parts(5)) == [(0, 1)]
+
+@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+	(100, 10),
+	(100, 90),
+	(1000, 10),
+	(1000, 100),
+	(1000, 900),
+))
+def test_full_reuse_index_random(n_accesses: int, n_files: int) -> None:
+	accesses = generate_access_seq(n_accesses, n_files)
+	fri = FullReuseIndex(accesses)
+	fri._verify(accesses)
+
+@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+	(100, 10),
+	(100, 90),
+	(1000, 10),
+	(1000, 100),
+	(1000, 900),
+))
+def test_change_to_active_files_random(n_accesses: int, n_files: int) -> None:
+	accesses = generate_access_seq(n_accesses, n_files)
+
+	fri = FullReuseIndex(accesses)
+	a = list(itertools.accumulate(change_to_active_files(fri, i) for i in range(len(accesses))))
+
+	assert a[-1] == 0
+	for active_files in a:
+		active_files <= n_files
+
+def test_change_to_active_files() -> None:
+	accesses = access_seq_from_files(['a', 'b', 'b', 'c', 'd', 'b', 'a'])
+
+	fri = FullReuseIndex(accesses)
+	a = list(itertools.accumulate(change_to_active_files(fri, i) for i in range(len(accesses))))
+
+	assert a == [1, 2, 2, 2, 2, 1, 0]
+
+@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+	(100, 10),
+	(100, 90),
+	(1000, 10),
+	(1000, 100),
+	(1000, 900),
+))
+def test_change_to_active_bytes_random(n_accesses: int, n_files: int) -> None:
+	accesses = generate_access_seq(n_accesses, n_files)
+
+	fri = FullReuseIndex(accesses)
+	a = list(itertools.accumulate(change_to_active_bytes(fri, i) for i in range(len(accesses))))
+
+	assert a[-1] == 0
+	for active_bytes in a:
+		# From each file only one byte is accessed
+		active_bytes <= n_files
+
+def test_change_to_active_bytes() -> None:
+	accesses = access_seq_from_files(['a', 'b', 'b', 'c', 'd', 'b', 'a'])
+
+	fri = FullReuseIndex(accesses)
+	a = list(itertools.accumulate(change_to_active_bytes(fri, i) for i in range(len(accesses))))
+
+	assert a == [1, 2, 2, 2, 2, 1, 0]
