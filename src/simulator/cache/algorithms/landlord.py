@@ -13,6 +13,7 @@ class Mode(Enum):
 	FETCH_SIZE = auto()
 	ADD_FETCH_SIZE = auto()
 	NO_COST = auto()
+	CONSTANT = auto()
 
 	@classmethod
 	def from_str(cls, val: str) -> 'Mode':
@@ -26,6 +27,8 @@ class Mode(Enum):
 			return cls.ADD_FETCH_SIZE
 		elif val == 'no_cost':
 			return cls.NO_COST
+		elif val == 'constant':
+			return cls.CONSTANT
 		else:
 			raise ValueError(f'Unknown {cls.__name__} str value {val!r}')
 
@@ -64,6 +67,9 @@ class Landlord(StateDrivenOnlineProcessor):
 	NO_COST - A file's credit is never increased on re-access. This almost
 	emulates FIFO, but not quite, as the volume credit decreases whenever an
 	additional fraction of the file is fetched.
+
+	CONSTANT - The credit is set to 1.0 on every access. This corresponds to
+	the GD-SIZE(1) policy.
 
 	Landlord is a generalisation of many strategies, including FIFO, LRU,
 	GreedyDual and GreedyDual-Size.
@@ -182,6 +188,8 @@ class Landlord(StateDrivenOnlineProcessor):
 					return float(total_bytes)
 				else:
 					return current_credit
+			elif mode is Mode.CONSTANT:
+				return 1.0
 
 			raise NotImplementedError
 
