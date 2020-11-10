@@ -387,6 +387,21 @@ class Reader(object):
 			else:
 				return self._len
 
+
+	class CacheProcessorDropped(object):
+		def __init__(self, reader: 'Reader'):
+			self._reader: 'Reader' = reader
+
+		def __iter__(self) -> Iterator[Access]:
+			return (assgnm.access for assgnm in iter(self._reader))
+
+		def __reversed__(self) -> Iterator[Access]:
+			return (assgnm.access for assgnm in reversed(self._reader))
+
+		def __len__(self) -> int:
+			return len(self._reader)
+
+
 	def __init__(self, path: _PathType, predicate: Optional[Predicate]=None) -> None:
 		self._path: _PathType = path
 		self._predicate: Optional[Predicate] = predicate
@@ -447,6 +462,9 @@ class Reader(object):
 
 	def scope_to_cache_processor(self, cache_proc: int) -> 'Reader.CacheProcessorScoped':
 		return Reader.CacheProcessorScoped(self, cache_proc)
+
+	def drop_cache_processor(self) -> 'Reader.CacheProcessorDropped':
+		return Reader.CacheProcessorDropped(self)
 
 	def _evaluate_predicate(self) -> None:
 		p = cast(Predicate, self._predicate)

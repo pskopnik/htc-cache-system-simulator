@@ -6,7 +6,7 @@ import itertools
 import sys
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, Sequence, TextIO, Tuple
 
-from .workload import Task
+from .workload import Access, Task
 from .workload.models.pags import (
 	build as build_pags,
 	load_params as load_pags_params,
@@ -26,14 +26,18 @@ from .distributor import (
 	NodeSpec,
 )
 
+from .dstructures.accessseq import change_to_active_bytes, change_to_active_files, FullReuseIndex
+
 from . import recorder
 
 from .cache import CacheSystem, OnlineCacheSystem, OfflineCacheSystem
+from .cache.accesses import SimpleAccessReader
 from .cache.processor import Processor, OfflineProcessor
 from .cache.stats import StatsCounters as CacheStatsCounters
 from .cache.storage import Storage
 
 from .cache.algorithms.arc import ARCBit
+from .cache.algorithms.eva import EVA
 from .cache.algorithms.fifo import FIFO
 from .cache.algorithms.greedydual import GreedyDual, Mode as GreedyDualMode
 from .cache.algorithms.landlord import Landlord, Mode as LandlordMode
@@ -147,8 +151,8 @@ def record(args: Any) -> None:
 
 	recorder.record_path(args.file_path, access_it)
 
-	if args.stats_file is not None:
-		write_distributor_stats_as_csv(distributor.stats, args.stats_file)
+	if args.summary_stats_file is not None:
+		write_workload_summary_stats_as_csv(distributor.stats, args.summary_stats_file)
 
 def tasks_from_args(args: Any) -> Sequence[Task]:
 	if args.model == 'pags':
@@ -182,10 +186,10 @@ def replay(args: Any) -> None:
 	else:
 		consume(cache_sys)
 
-	if args.stats_file is not None:
-		write_cache_stats_as_csv(cache_sys.stats, args.stats_file)
+	if args.summary_stats_file is not None:
+		write_cache_summary_stats_as_csv(cache_sys.stats, args.summary_stats_file)
 
-def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO) -> None:
+def write_cache_summary_stats_as_csv(counters: CacheStatsCounters, file: TextIO) -> None:
 	writer = csv.writer(file)
 
 	writer.writerow([
@@ -230,7 +234,7 @@ def write_cache_stats_as_csv(counters: CacheStatsCounters, file: TextIO) -> None
 		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
 	])
 
-def write_distributor_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO) -> None:
+def write_workload_summary_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO) -> None:
 	writer = csv.writer(file)
 
 	writer.writerow([
@@ -296,6 +300,8 @@ def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processo
 
 	if args.cache_processor == 'arcbit':
 		return partial(ARCBit, ARCBit.Configuration.from_user_args(user_args)), True, False
+	elif args.cache_processor == 'eva':
+		return partial(EVA, EVA.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'fifo':
 		return FIFO, True, False
 	elif args.cache_processor == 'greedydual':
@@ -340,6 +346,93 @@ def convert_accesses_to_monitoring(args: Any) -> None:
 			0,
 		])
 
+def workload_stats(args: Any) -> None:
+	if args.summary_stats_file is None and args.accesses_stats_file is None and args.files_stats_file is None:
+		raise Exception('At least one "*_stats_file" parameter has to be specified.')
+
+	reader = recorder.Reader(args.file_path)
+
+	access_reader: SimpleAccessReader
+	if args.cache_processor_index is not None:
+		access_reader = reader.scope_to_cache_processor(args.cache_processor_index)
+	else:
+		access_reader = reader.drop_cache_processor()
+
+	collector = StatsCollector(access_reader)
+	it: Iterator[Access] = iter(collector)
+
+	if args.accesses_stats_file is not None:
+		it = write_yield_accesses_stats_as_csv(access_reader, collector, args.accesses_stats_file)
+
+	consume(it)
+
+	if args.files_stats_file is not None:
+		write_files_stats_as_csv(collector.stats, args.files_stats_file)
+
+	if args.summary_stats_file is not None:
+		write_workload_summary_stats_as_csv(collector.stats, args.summary_stats_file)
+
+def write_yield_accesses_stats_as_csv(
+	access_reader: SimpleAccessReader,
+	collector: StatsCollector,
+	stats_file: TextIO,
+) -> Iterator[Access]:
+	full_reuse_index = FullReuseIndex(access_reader)
+
+	writer = csv.writer(stats_file)
+	writer.writerow([
+		'time',
+		'file_key',
+		'access_size',
+		'access_parts_count',
+		'total_accesses',
+		'total_bytes',
+		'total_unique_bytes',
+		'total_unique_files',
+		'active_files',
+		'active_bytes',
+	])
+
+	active_files = 0
+	active_bytes = 0
+	for ind, access in enumerate(collector):
+		active_files += change_to_active_files(full_reuse_index, ind)
+		active_bytes += change_to_active_bytes(full_reuse_index, ind)
+
+		writer.writerow([
+			access.access_ts,
+			access.file,
+			sum(size for _, size in access.parts),
+			len(access.parts),
+			collector.stats.total_stats.accesses,
+			collector.stats.total_stats.total_bytes_accessed,
+			collector.stats.total_stats.unique_bytes_accessed,
+			len(collector.stats.files_stats),
+			active_files,
+			active_bytes,
+		])
+
+		yield access
+
+def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO) -> None:
+	writer = csv.writer(stats_file)
+	writer.writerow([
+		'file_key',
+		'total_accesses',
+		'total_bytes_accessed',
+		'unique_bytes_accessed',
+		'parts_accessed',
+	])
+
+	for file_stats in counters.files_stats:
+		writer.writerow([
+			file_stats.id,
+			file_stats.accesses,
+			file_stats.total_bytes_accessed,
+			file_stats.unique_bytes_accessed,
+			len(file_stats.parts),
+		])
+
 parser = argparse.ArgumentParser(description='Simulate HTC cache system.')
 subparsers = parser.add_subparsers(dest='command', required=True)
 
@@ -347,7 +440,7 @@ parser_record = subparsers.add_parser('record', help='Generate cache-seen access
 parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
 parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; iterates as long as all limits hold semantic.')
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
-parser_record.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the approximate aggregated access sequence stats are written as CSV.')
+parser_record.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which approximate summary stats about the entire access sequence (headers and one row) are written as CSV.')
 parser_record.add_argument('--model', required=True, type=str, help='workload model used to generate the workload.')
 parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file containing the parameters for the workload model.')
 parser_record.add_argument('--seed', type=int, help='Seed for initialising the pseudo-random number generator. If not passed a seed is chosen by the python default behaviour.')
@@ -364,10 +457,17 @@ parser_replay.add_argument('--cache-processor-args', type=str, help='arguments p
 parser_replay.add_argument('--storage-size', required=True, type=int, help='size of the cache storage volumes in bytes.')
 parser_replay.add_argument('--non-shared-storage', action='store_false', dest='shared_storage', help='each cache processor receives its own storage volume if set.')
 parser_replay.add_argument('--cache-info-file', type=str, dest='cache_info_file_path', help='output file to which cache info data is written, i.e. hit and miss info for each access.')
-parser_replay.add_argument('--stats-file', type=argparse.FileType('w'), help='output file to which the aggregated cache stats are written as CSV.')
+parser_replay.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the cache system (headers and one row) are written as CSV.')
 
 parser_convert_accesses_to_monitoring = subparsers.add_parser('convert-accesses-to-monitoring', help='Converts a file of access sequences to the same format as used for monitoring data (job trace).')
 parser_convert_accesses_to_monitoring.add_argument('-f', '--file', required=True, type=argparse.FileType('r'), help='input file from which the accesses are read.')
+
+parser_workload_stats = subparsers.add_parser('workload-stats', help='Computes comprehensive stats on an access sequence.')
+parser_workload_stats.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')
+parser_workload_stats.add_argument('--accesses-stats-file', type=argparse.FileType('w'), help='output file to which stats about accesses (one row per access) are written as CSV.')
+parser_workload_stats.add_argument('--files-stats-file', type=argparse.FileType('w'), help='output file to which stats about files (one row per file) are written as CSV.')
+parser_workload_stats.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
+parser_workload_stats.add_argument('--cache-processor-index', type=int, help='index of the cache processor for which stats are computed. If omitted, all cache processors are included.')
 
 def main() -> None:
 	args = parser.parse_args(sys.argv[1:])
@@ -378,8 +478,10 @@ def main() -> None:
 		replay(args)
 	elif args.command == 'convert-accesses-to-monitoring':
 		convert_accesses_to_monitoring(args)
+	elif args.command == 'workload-stats':
+		workload_stats(args)
 	else:
-		raise NotImplementedError(f'No command {args.command!r}, see --help for usage info')
+		raise NotImplementedError(f'No command {args.command!r}, see --help for usage info.')
 
 if __name__ == '__main__':
 	main()
