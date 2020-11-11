@@ -1,8 +1,8 @@
 import abc
 from enum import auto, Enum
-from io import SEEK_SET, SEEK_CUR, SEEK_END
+from io import BufferedIOBase, SEEK_SET, SEEK_CUR, SEEK_END
 import orjson
-from os import PathLike
+from os import fstat, PathLike
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, BinaryIO, Tuple, TYPE_CHECKING, Union
 
 from .distributor import AccessAssignment
@@ -88,6 +88,22 @@ def _reverse_replay(
 		dct = orjson.loads(line)
 		yield _dct_to_assgnm(dct)
 
+def _chunk_size(file: BinaryIO) -> int:
+	chunk_size = 0
+	try:
+		# Attempt to extract the file descriptor number from the raw I/O
+		# instance underlying the buffered reader. The st_blksize field
+		# returned by the stat syscall suggests the size of read operations.
+		# Alternatively, sys.sizeof() could be used to guess the buffer size
+		# of the buffered reader. The ``open()`` function uses an internal
+		# algorithm to determine the buffer size (relying on st_blksize ).
+		chunk_size = fstat(cast(BufferedIOBase, file).raw.fileno()).st_blksize
+	except (AttributeError, OSError):
+		pass
+
+	# chunk_size should at least be 64 KiB
+	return max(chunk_size, 64 * 1024)
+
 def _reverse_read_jsonl(
 	file: BinaryIO,
 	begin_pos: int = 0,
@@ -99,7 +115,7 @@ def _reverse_read_jsonl(
 		file.seek(0, SEEK_END)
 
 	buf = b''
-	chunk_size = 64 * 1024
+	chunk_size = _chunk_size(file)
 	exhausted = False
 	start_ind = 0
 
