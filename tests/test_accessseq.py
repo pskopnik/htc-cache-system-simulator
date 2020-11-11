@@ -1,6 +1,6 @@
 import itertools
 import math
-import pytest # type: ignore[import]
+import pytest
 import random
 from typing import cast, Iterable, Iterator, List, Sequence
 
@@ -47,7 +47,7 @@ def test_reuse_timer_basics() -> None:
 	r._verify(accesses)
 	_assert_reuse_timer_equals(r, [3, 4, 5, 5, 5])
 
-@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+@pytest.mark.parametrize('n_accesses,n_files', (
 	(100, 10),
 	(100, 90),
 	(1000, 10),
@@ -84,7 +84,7 @@ def test_full_reuse_index_accessed_after_and_before() -> None:
 	assert fri.accessed_before(4, fri.parts(4)) == [(0, 2)]
 	assert fri.accessed_before(5, fri.parts(5)) == [(0, 1)]
 
-@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+@pytest.mark.parametrize('n_accesses,n_files', (
 	(100, 10),
 	(100, 90),
 	(1000, 10),
@@ -96,7 +96,7 @@ def test_full_reuse_index_random(n_accesses: int, n_files: int) -> None:
 	fri = FullReuseIndex(accesses)
 	fri._verify(accesses)
 
-@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+@pytest.mark.parametrize('n_accesses,n_files', (
 	(100, 10),
 	(100, 90),
 	(1000, 10),
@@ -121,7 +121,7 @@ def test_change_to_active_files() -> None:
 
 	assert a == [1, 2, 2, 2, 2, 1, 0]
 
-@pytest.mark.parametrize('n_accesses,n_files', ( # type: ignore[misc]
+@pytest.mark.parametrize('n_accesses,n_files', (
 	(100, 10),
 	(100, 90),
 	(1000, 10),

@@ -1,6 +1,6 @@
 from io import BytesIO, StringIO
 import jsonschema
-import pytest # type: ignore[import]
+import pytest
 
 from simulator.workload.jsonparams import (
 	load_validate_transform,

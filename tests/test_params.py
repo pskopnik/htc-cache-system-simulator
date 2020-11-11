@@ -1,5 +1,5 @@
 import itertools
-import pytest # type: ignore[import]
+import pytest
 from shlex import shlex
 import string
 from typing import Callable, cast, Dict, Generic, Iterable, Iterator, List, TypeVar
@@ -50,7 +50,7 @@ def _controls_from_lex(lex: shlex) -> Dict[str, str]:
 def _without_key(d: Dict[_T, _V], key: _T) -> Dict[_T, _V]:
 	return dict(filter(lambda kv: kv[0] != key, d.items()))
 
-@pytest.mark.parametrize( # type: ignore[misc]
+@pytest.mark.parametrize(
 	'attr',
 	(
 		'commenters',
@@ -111,7 +111,7 @@ def test_tokens_until() -> None:
 	assert list(tokens_until(lex, (',', '|'))) == ['some', 'tokens']
 	assert lex.get_token() == '|'
 
-@pytest.mark.parametrize( # type: ignore[misc]
+@pytest.mark.parametrize(
 	'a,fieldb,another_field',
 	(
 		('some text', 34, 'text'),
@@ -161,7 +161,7 @@ def test_parse_user_args(a: str, fieldb: int, another_field: str) -> None:
 		c.unset_field
 
 
-@pytest.mark.parametrize( # type: ignore[misc]
+@pytest.mark.parametrize(
 	'raw,value',
 	(
 		('asdf123', 'asdf123'),

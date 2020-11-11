@@ -1,5 +1,5 @@
 import itertools
-import pytest # type: ignore[import]
+import pytest
 import random
 from typing import cast, Iterable, Iterator, List, TypeVar
 
@@ -18,7 +18,7 @@ def random_bin_nums(binner: Binner, past_size: int=10000, n: int=-1) -> Iterator
 	if not binner.bounded and n == -1:
 		it = itertools.count()
 	else:
-		it = range(min(filter(lambda x: x != -1, [binner.bins, n])))
+		it = range(min(x for x in [binner.bins, n] if x != -1))
 
 	for i in it:
 		first, past = binner.bin_limits(i)
@@ -80,7 +80,7 @@ def test_log_binner_basics() -> None:
 	b = LogBinner(first=5, last=8, step=4)
 	_assert_binner_equals(b, [0])
 
-@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
+@pytest.mark.parametrize('step', (1, 2, 3, 4))
 def test_bounded_log_binner(step: int) -> None:
 	b = LogBinner(first=10, last=40, step=step)
 
@@ -97,7 +97,7 @@ def test_bounded_log_binner(step: int) -> None:
 		num *= 2 ** step
 		assert b(num) == old_bin + 1
 
-@pytest.mark.parametrize('step', (1, 2, 3, 4)) # type: ignore[misc]
+@pytest.mark.parametrize('step', (1, 2, 3, 4))
 def test_unbounded_log_binner(step: int) -> None:
 	b = LogBinner(first=10, step=step)
 
@@ -114,7 +114,7 @@ def test_unbounded_log_binner(step: int) -> None:
 		num *= 2 ** step
 		assert b(num) == old_bin + 1
 
-@pytest.mark.parametrize('width', (1, 2, 10, 100)) # type: ignore[misc]
+@pytest.mark.parametrize('width', (1, 2, 10, 100))
 def test_linear_binner(width: int) -> None:
 	b = LinearBinner(width=width)
 
@@ -136,7 +136,7 @@ def test_linear_binner(width: int) -> None:
 # TODO: mypy error
 # Function is missing a type annotation for one or more arguments [no-untyped-def]
 
-@pytest.fixture(params=[ # type: ignore[misc]
+@pytest.fixture(params=[
 	(LogBinner, (1,), {}), # type: ignore[no-untyped-def]
 	(LogBinner, (2,), {}),
 	(LogBinner, (3,), {}),

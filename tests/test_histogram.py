@@ -1,6 +1,6 @@
 from array import array
 import itertools
-import pytest # type: ignore[import]
+import pytest
 import random
 from typing import (
 	AbstractSet,

@@ -1,12 +1,12 @@
 import collections
 import functools
 import math
-import pytest # type: ignore[import]
+import pytest
 from typing import Dict, List
 
 from simulator.workload.schemes import NonCorrelatedSchemesGenerator
 
-@pytest.mark.parametrize( # type: ignore[misc]
+@pytest.mark.parametrize(
 	'file_size,number,fraction',
 	(
 		(1024*1024*1024, 7, 0.2),
