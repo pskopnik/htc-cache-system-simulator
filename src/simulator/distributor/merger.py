@@ -1,5 +1,6 @@
 import heapq
 from typing import Any, Callable, Iterable, Iterator, List, Sequence, Tuple
+
 from ..workload import Job, Submitter, Task
 
 TimeStamp = int

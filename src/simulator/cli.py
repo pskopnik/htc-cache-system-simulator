@@ -19,12 +19,13 @@ from .workload.models.random import (
 	build as build_random,
 	load_params as load_random_params,
 )
-from .workload.stats import StatsCollector, StatsCounters as WorkloadStatsCounters
+from .workload.stats import StatsCounters as WorkloadStatsCounters
 from .distributor import (
 	AccessAssignment,
 	Distributor,
 	NodeSpec,
 )
+from .distributor.stats import AssignmentsStatsCollector
 
 from .dstructures.accessseq import change_to_active_bytes, change_to_active_files, FullReuseIndex
 
@@ -136,12 +137,12 @@ def record(args: Any) -> None:
 
 	nodes = (NodeSpec(32, 10*1024*1024, 0) for _ in range(100))
 
-	distributor = Distributor(1, nodes, tasks)
+	distributor = Distributor(nodes, tasks)
 
 	if args.generate_time is None and args.generate_accesses is None:
 		raise Exception('either --generate-time or --generate-accesses must be specified')
 
-	access_it = filter_accesses_stop_early(
+	assignment_it = filter_accesses_stop_early(
 		distributor,
 		args.generate_time,
 		args.generate_accesses,
@@ -149,10 +150,14 @@ def record(args: Any) -> None:
 		None,
 	)
 
-	recorder.record_path(args.file_path, access_it)
-
 	if args.summary_stats_file is not None:
-		write_workload_summary_stats_as_csv(distributor.stats, args.summary_stats_file)
+		stats_collector = AssignmentsStatsCollector(assignment_it)
+
+		recorder.record_path(args.file_path, stats_collector)
+
+		write_workload_summary_stats_as_csv(stats_collector.stats, args.summary_stats_file)
+	else:
+		recorder.record_path(args.file_path, assignment_it)
 
 def tasks_from_args(args: Any) -> Sequence[Task]:
 	if args.model == 'pags':
@@ -351,18 +356,15 @@ def workload_stats(args: Any) -> None:
 		raise Exception('At least one "*_stats_file" parameter has to be specified.')
 
 	reader = recorder.Reader(args.file_path)
+	it: Iterable[AccessAssignment] = reader
 
-	access_reader: SimpleAccessReader
 	if args.cache_processor_index is not None:
-		access_reader = reader.scope_to_cache_processor(args.cache_processor_index)
-	else:
-		access_reader = reader.drop_cache_processor()
+		raise NotImplementedError('Cannot scope to cache processor.')
 
-	collector = StatsCollector(access_reader)
-	it: Iterator[Access] = iter(collector)
+	it = collector = AssignmentsStatsCollector(reader)
 
 	if args.accesses_stats_file is not None:
-		it = write_yield_accesses_stats_as_csv(access_reader, collector, args.accesses_stats_file)
+		it = write_yield_accesses_stats_as_csv(reader, collector, args.accesses_stats_file)
 
 	consume(it)
 
@@ -373,11 +375,11 @@ def workload_stats(args: Any) -> None:
 		write_workload_summary_stats_as_csv(collector.stats, args.summary_stats_file)
 
 def write_yield_accesses_stats_as_csv(
-	access_reader: SimpleAccessReader,
-	collector: StatsCollector,
+	reader: recorder.Reader,
+	collector: AssignmentsStatsCollector,
 	stats_file: TextIO,
-) -> Iterator[Access]:
-	full_reuse_index = FullReuseIndex(access_reader)
+) -> Iterator[AccessAssignment]:
+	full_reuse_index = FullReuseIndex(reader.drop_cache_processor())
 
 	writer = csv.writer(stats_file)
 	writer.writerow([
@@ -385,6 +387,7 @@ def write_yield_accesses_stats_as_csv(
 		'file_key',
 		'access_size',
 		'access_parts_count',
+		'cache_processor',
 		'total_accesses',
 		'total_bytes',
 		'total_unique_bytes',
@@ -395,15 +398,16 @@ def write_yield_accesses_stats_as_csv(
 
 	active_files = 0
 	active_bytes = 0
-	for ind, access in enumerate(collector):
+	for ind, assignment in enumerate(collector):
 		active_files += change_to_active_files(full_reuse_index, ind)
 		active_bytes += change_to_active_bytes(full_reuse_index, ind)
 
 		writer.writerow([
-			access.access_ts,
-			access.file,
-			sum(size for _, size in access.parts),
-			len(access.parts),
+			assignment.access.access_ts,
+			assignment.access.file,
+			sum(size for _, size in assignment.access.parts),
+			assignment.cache_proc,
+			len(assignment.access.parts),
 			collector.stats.total_stats.accesses,
 			collector.stats.total_stats.total_bytes_accessed,
 			collector.stats.total_stats.unique_bytes_accessed,
@@ -412,7 +416,7 @@ def write_yield_accesses_stats_as_csv(
 			active_bytes,
 		])
 
-		yield access
+		yield assignment
 
 def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO) -> None:
 	writer = csv.writer(stats_file)
@@ -440,7 +444,7 @@ parser_record = subparsers.add_parser('record', help='Generate cache-seen access
 parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
 parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; iterates as long as all limits hold semantic.')
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
-parser_record.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which approximate summary stats about the entire access sequence (headers and one row) are written as CSV.')
+parser_record.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
 parser_record.add_argument('--model', required=True, type=str, help='workload model used to generate the workload.')
 parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file containing the parameters for the workload model.')
 parser_record.add_argument('--seed', type=int, help='Seed for initialising the pseudo-random number generator. If not passed a seed is chosen by the python default behaviour.')

@@ -1,6 +1,7 @@
 import heapq
 from typing import cast, Iterable, Iterator, List, Tuple
 import math
+
 from ..workload import Access, AccessRequest, Job, TimeStamp
 from ..events import EventIterator
 
@@ -50,7 +51,7 @@ class JobScheduler(object):
 	  ____________________________________
 	t 0   1   2   3   4   5   6   7   8
 	"""
-	def __init__(self, cache_proc: int, node_specs: Iterable[NodeSpec], jobs_it: Iterable[Job]):
+	def __init__(self, node_specs: Iterable[NodeSpec], jobs_it: Iterable[Job]):
 		self._jobs_it: Iterable[Job] = jobs_it
 
 		self._queue_index: int = 0
@@ -189,8 +190,8 @@ class AccessScheduler(object):
 
 
 class Scheduler(object):
-	def __init__(self, cache_proc: int, node_specs: Iterable[NodeSpec], jobs_it: Iterable[Job]):
-		self._job_scheduler: JobScheduler = JobScheduler(cache_proc, node_specs, jobs_it)
+	def __init__(self, node_specs: Iterable[NodeSpec], jobs_it: Iterable[Job]):
+		self._job_scheduler: JobScheduler = JobScheduler(node_specs, jobs_it)
 		self._access_scheduler: AccessScheduler = AccessScheduler(self._job_scheduler)
 
 	def __iter__(self) -> Iterator[AccessAssignment]:

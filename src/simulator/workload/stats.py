@@ -1,6 +1,6 @@
-from typing import Dict, Iterable, Iterator, List, Union, ValuesView
+from typing import Dict, Iterable, Iterator, List, ValuesView
 
-from . import Access, AccessRequest, BytesSize, FileID, PartInd
+from . import Access, BytesSize, FileID, PartInd
 
 
 class PartStats(object):
@@ -19,7 +19,15 @@ class PartStats(object):
 
 
 class FileStats(object):
-	__slots__ = ['id', 'accesses', 'total_bytes_accessed', 'unique_bytes_accessed', 'parts']
+	__slots__ = [
+		'id',
+		'accesses',
+		'total_bytes_accessed',
+		'unique_bytes_accessed',
+		'parts',
+		'first_access_time',
+		'last_access_time',
+	]
 
 	def __init__(self, id: FileID) -> None:
 		self.id: FileID = id
@@ -27,6 +35,8 @@ class FileStats(object):
 		self.total_bytes_accessed: BytesSize = 0
 		self.unique_bytes_accessed: BytesSize = 0
 		self.parts: List[PartStats] = []
+		self.first_access_time: int = 0
+		self.last_access_time: int = 0
 
 	def reset(self) -> None:
 		self.accesses = 0
@@ -75,12 +85,15 @@ class StatsCounters(object):
 	def _new_part_stats(self, ind: PartInd) -> PartStats:
 		return PartStats(ind)
 
-	def process_access(self, access: Union[Access, AccessRequest]) -> None:
+	def process_access(self, access: Access) -> None:
 		try:
 			file_stats = self._files_stats[access.file]
 		except KeyError:
 			file_stats = self._new_file_stats(access.file)
 			self._files_stats[access.file] = file_stats
+			file_stats.first_access_time = access.access_ts
+
+		file_stats.last_access_time = access.access_ts
 
 		file_stats.accesses += 1
 		self._total_stats.accesses += 1

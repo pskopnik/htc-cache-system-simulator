@@ -1,7 +1,8 @@
+from itertools import repeat
 from typing import Any, Iterable, Iterator, List, Optional
 import math
+
 from . import AccessRequest, FileID, Job, PartSpec, PartsGenerator, Submitter, TimeStamp
-from itertools import repeat
 from ..utils import repeat_each
 
 
