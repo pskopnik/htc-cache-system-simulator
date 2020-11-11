@@ -1,6 +1,6 @@
 from typing import Dict, Iterable, Iterator, List, ValuesView
 
-from . import Access, BytesSize, FileID, PartInd
+from . import Access, BytesSize, FileID, PartInd, TimeStamp
 
 
 class PartStats(object):
@@ -35,14 +35,16 @@ class FileStats(object):
 		self.total_bytes_accessed: BytesSize = 0
 		self.unique_bytes_accessed: BytesSize = 0
 		self.parts: List[PartStats] = []
-		self.first_access_time: int = 0
-		self.last_access_time: int = 0
+		self.first_access_time: TimeStamp = 0
+		self.last_access_time: TimeStamp = 0
 
 	def reset(self) -> None:
 		self.accesses = 0
 		self.total_bytes_accessed = 0
 		self.unique_bytes_accessed = 0
 		self.parts = []
+		self.first_access_time = 0
+		self.last_access_time = 0
 
 
 class TotalStats(object):

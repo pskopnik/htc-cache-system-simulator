@@ -153,9 +153,11 @@ def record(args: Any) -> None:
 	if args.summary_stats_file is not None:
 		stats_collector = AssignmentsStatsCollector(assignment_it)
 
-		recorder.record_path(args.file_path, stats_collector)
+		cache_processors_counter = CacheProcessorsCounter(stats_collector)
 
-		write_workload_summary_stats_as_csv(stats_collector.stats, args.summary_stats_file)
+		recorder.record_path(args.file_path, cache_processors_counter)
+
+		write_workload_summary_stats_as_csv(stats_collector.stats, cache_processors_counter.count, args.summary_stats_file)
 	else:
 		recorder.record_path(args.file_path, assignment_it)
 
@@ -208,14 +210,6 @@ def write_cache_summary_stats_as_csv(counters: CacheStatsCounters, file: TextIO)
 		'bytes_missed',
 		'bytes_added',
 		'bytes_removed',
-		# 'hit_rate',
-		# 'miss_rate',
-		# 'byte_hit_rate',
-		# 'byte_miss_rate',
-		# 'theoretically_best_hit_rate',
-		# 'theoretically_best_miss_rate',
-		# 'theoretically_best_byte_hit_rate',
-		# 'theoretically_best_byte_miss_rate',
 	])
 
 	writer.writerow([
@@ -229,17 +223,9 @@ def write_cache_summary_stats_as_csv(counters: CacheStatsCounters, file: TextIO)
 		counters.total_stats.bytes_missed,
 		counters.total_stats.bytes_added,
 		counters.total_stats.bytes_removed,
-		# counters.total_stats.files_hit / counters.total_stats.accesses,
-		# counters.total_stats.files_missed / counters.total_stats.accesses,
-		# counters.total_stats.bytes_hit / counters.total_stats.total_bytes_accessed,
-		# counters.total_stats.bytes_missed / counters.total_stats.total_bytes_accessed,
-		# (counters.total_stats.accesses - counters.total_stats.files) / counters.total_stats.accesses,
-		# counters.total_stats.files / counters.total_stats.accesses,
-		# (counters.total_stats.total_bytes_accessed - counters.total_stats.unique_bytes_accessed) / counters.total_stats.total_bytes_accessed,
-		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
 	])
 
-def write_workload_summary_stats_as_csv(counters: WorkloadStatsCounters, file: TextIO) -> None:
+def write_workload_summary_stats_as_csv(counters: WorkloadStatsCounters, cache_processors_count: int, file: TextIO) -> None:
 	writer = csv.writer(file)
 
 	writer.writerow([
@@ -247,10 +233,7 @@ def write_workload_summary_stats_as_csv(counters: WorkloadStatsCounters, file: T
 		'files',
 		'total_bytes_accessed',
 		'unique_bytes_accessed',
-		# 'theoretically_best_hit_rate',
-		# 'theoretically_best_miss_rate',
-		# 'theoretically_best_byte_hit_rate',
-		# 'theoretically_best_byte_miss_rate',
+		'cache_processors_count',
 	])
 
 	writer.writerow([
@@ -258,10 +241,7 @@ def write_workload_summary_stats_as_csv(counters: WorkloadStatsCounters, file: T
 		len(counters.files_stats),
 		counters.total_stats.total_bytes_accessed,
 		counters.total_stats.unique_bytes_accessed,
-		# (counters.total_stats.accesses - counters.total_stats.files) / counters.total_stats.accesses,
-		# counters.total_stats.files / counters.total_stats.accesses,
-		# (counters.total_stats.total_bytes_accessed - counters.total_stats.unique_bytes_accessed) / counters.total_stats.total_bytes_accessed,
-		# counters.total_stats.unique_bytes_accessed / counters.total_stats.total_bytes_accessed,
+		cache_processors_count,
 	])
 
 def cache_system_from_args(args: Any) -> CacheSystem:
@@ -270,9 +250,9 @@ def cache_system_from_args(args: Any) -> CacheSystem:
 
 	if args.shared_storage:
 		storage = Storage(args.storage_size)
-		processors = (processor_factory(storage) for _ in range(args.cache_processor_count))
+		processors = (processor_factory(storage) for _ in range(args.cache_processors_count))
 	else:
-		processors = map(lambda f: f(Storage(args.storage_size)), itertools.repeat(processor_factory, args.cache_processor_count))
+		processors = map(lambda f: f(Storage(args.storage_size)), itertools.repeat(processor_factory, args.cache_processors_count))
 
 	if online:
 		access_it = filter_accesses_stop_early(
@@ -366,13 +346,35 @@ def workload_stats(args: Any) -> None:
 	if args.accesses_stats_file is not None:
 		it = write_yield_accesses_stats_as_csv(reader, collector, args.accesses_stats_file)
 
+	it = cache_processors_counter = CacheProcessorsCounter(it)
+
 	consume(it)
 
 	if args.files_stats_file is not None:
 		write_files_stats_as_csv(collector.stats, args.files_stats_file)
 
 	if args.summary_stats_file is not None:
-		write_workload_summary_stats_as_csv(collector.stats, args.summary_stats_file)
+		write_workload_summary_stats_as_csv(collector.stats, cache_processors_counter.count, args.summary_stats_file)
+
+
+class CacheProcessorsCounter(object):
+	def __init__(self, it: Iterable[AccessAssignment]) -> None:
+		self._it: Iterable[AccessAssignment] = it
+		self._count: int = 0
+
+	@property
+	def count(self) -> int:
+		return self._count
+
+	def __iter__(self) -> Iterator[AccessAssignment]:
+		max_cache_processor_index = 0
+		self._count = max_cache_processor_index + 1
+		for assgnm in self._it:
+			if assgnm.cache_proc > max_cache_processor_index:
+				max_cache_processor_index = assgnm.cache_proc
+				self._count = max_cache_processor_index + 1
+			yield assgnm
+
 
 def write_yield_accesses_stats_as_csv(
 	reader: recorder.Reader,
@@ -406,8 +408,8 @@ def write_yield_accesses_stats_as_csv(
 			assignment.access.access_ts,
 			assignment.access.file,
 			sum(size for _, size in assignment.access.parts),
-			assignment.cache_proc,
 			len(assignment.access.parts),
+			assignment.cache_proc,
 			collector.stats.total_stats.accesses,
 			collector.stats.total_stats.total_bytes_accessed,
 			collector.stats.total_stats.unique_bytes_accessed,
@@ -426,6 +428,8 @@ def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO
 		'total_bytes_accessed',
 		'unique_bytes_accessed',
 		'parts_accessed',
+		'first_access_time',
+		'last_access_time',
 	])
 
 	for file_stats in counters.files_stats:
@@ -435,6 +439,8 @@ def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO
 			file_stats.total_bytes_accessed,
 			file_stats.unique_bytes_accessed,
 			len(file_stats.parts),
+			file_stats.first_access_time,
+			file_stats.last_access_time,
 		])
 
 parser = argparse.ArgumentParser(description='Simulate HTC cache system.')
@@ -455,7 +461,7 @@ parser_replay.add_argument('--warm-up-accesses', type=int, help='number of acces
 parser_replay.add_argument('--warm-up-time', type=int, help='number of seconds considered cache warm-up.') # missing: unique bytes read, total bytes read
 parser_replay.add_argument('--process-accesses', type=int, help='number of accesses to be processed (including warm-up). Limit; iterates as long as all limits hold semantic.')
 parser_replay.add_argument('--process-time', type=int, help='number of seconds to be processed (including warm-up). Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
-parser_replay.add_argument('--cache-processor-count', type=int, default=1, help='number of simulated cache processors, must match recorded accesses.')
+parser_replay.add_argument('--cache-processors-count', type=int, default=1, help='number of simulated cache processors, must match recorded accesses.')
 parser_replay.add_argument('--cache-processor', required=True, type=str, help='cache processor type (algorithm to use) to be simulated.')
 parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to the each cache processor.')
 parser_replay.add_argument('--storage-size', required=True, type=int, help='size of the cache storage volumes in bytes.')

@@ -1,13 +1,21 @@
 from typing import cast, Dict, Iterable, Iterator, ValuesView
 
 from .processor import AccessInfo
-from ..workload import BytesSize, FileID
-from ..workload import stats
+from ..workload import BytesSize, FileID, stats, TimeStamp
 
 
 class FileStats(stats.FileStats):
-	__slots__ = ['hits', 'misses', 'bytes_hit', 'bytes_missed', 'bytes_added']
-	# 'bytes_removed', # not known
+	__slots__ = [
+		'hits',
+		'misses',
+		'bytes_hit',
+		'bytes_missed',
+		'bytes_added',
+		# 'bytes_removed', # not precisely known
+		'bytes_removed_due',
+		'last_residence_begin',
+		'last_residence_end',
+	]
 
 	def __init__(self, id: FileID) -> None:
 		super(FileStats, self).__init__(id)
@@ -16,7 +24,10 @@ class FileStats(stats.FileStats):
 		self.bytes_hit: BytesSize = 0
 		self.bytes_missed: BytesSize = 0
 		self.bytes_added: BytesSize = 0
-		# self.bytes_removed: int = 0 # not known
+		# self.bytes_removed: int = 0 # not precisely known
+		self.bytes_removed_due: BytesSize = 0
+		self.last_residence_begin: TimeStamp = 0
+		self.last_residence_end: TimeStamp = 0
 
 	def reset(self) -> None:
 		super(FileStats, self).reset()
@@ -25,7 +36,10 @@ class FileStats(stats.FileStats):
 		self.bytes_hit = 0
 		self.bytes_missed = 0
 		self.bytes_added = 0
-		# self.bytes_removed = 0 # not known
+		# self.bytes_removed = 0 # not precisely known
+		self.bytes_removed_due = 0
+		self.last_residence_begin = 0
+		self.last_residence_end = 0
 
 
 class TotalStats(stats.TotalStats):
@@ -93,6 +107,7 @@ class StatsCounters(stats.StatsCounters):
 		file_stats.bytes_hit += access_info.bytes_hit
 		file_stats.bytes_missed += access_info.bytes_missed
 		file_stats.bytes_added += access_info.bytes_added
+		file_stats.bytes_removed_due += access_info.bytes_removed
 
 		if access_info.file_hit:
 			file_stats.hits += 1
@@ -100,11 +115,15 @@ class StatsCounters(stats.StatsCounters):
 		else:
 			file_stats.misses += 1
 			self._total_stats.files_missed += 1
+			file_stats.last_residence_begin = access_info.access.access_ts
 
 		self._total_stats.bytes_hit += access_info.bytes_hit
 		self._total_stats.bytes_missed += access_info.bytes_missed
 		self._total_stats.bytes_added += access_info.bytes_added
 		self._total_stats.bytes_removed += access_info.bytes_removed
+
+		for file in access_info.evicted_files:
+			self._cache_files_stats[file].last_residence_end = access_info.access.access_ts
 
 
 class StatsCollector(object):
