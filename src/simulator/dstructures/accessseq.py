@@ -71,11 +71,12 @@ class FullReuseIndex(object):
 	"""
 
 	def __init__(self, accesses: SimpleAccessReader) -> None:
-		# Next or previous use index of the same file
+		# Next or previous use index for the same file
 		# If there is no following index to ind:
 		# _*_use_ind[ind] >= len(_*_use_ind)
 		self._prev_use_ind: array[int]
 		self._next_use_ind: array[int]
+		self._access_ts: array[int]
 		# _parts_offset describes which indices in _parts and _part_sizes are
 		# associated with access ind i:
 		# _parts[range(
@@ -91,6 +92,7 @@ class FullReuseIndex(object):
 		(
 			self._prev_use_ind,
 			self._next_use_ind,
+			self._access_ts,
 			self._parts_offset,
 			self._parts,
 			self._part_sizes,
@@ -146,6 +148,9 @@ class FullReuseIndex(object):
 
 	def next_use_ind_len(self, ind: int) -> int:
 		return self._next_use_ind[ind]
+
+	def access_ts(self, ind: int) -> int:
+		return self._access_ts[ind]
 
 	def parts(self, ind: int) -> List[PartSpec]:
 		r = self._parts_range(ind)
@@ -219,6 +224,9 @@ class FullReuseIndex(object):
 			if prev_use_ind != accesses_length:
 				assert accesses[prev_use_ind].file == file, 'invalid reuse ind'
 
+
+			assert accesses[ind].access_ts == self._access_ts[ind], 'mismatching access_ts'
+
 			sorted_parts = sorted(accesses[ind].parts)
 			r = self._parts_range(ind)
 			assert [ind for ind, _ in sorted_parts] == [self._parts[i] for i in r], \
@@ -229,7 +237,7 @@ class FullReuseIndex(object):
 	@staticmethod
 	def _build(
 		accesses: SimpleAccessReader,
-	) -> Tuple['array[int]', 'array[int]', 'array[int]', 'array[int]', 'array[int]']:
+	) -> Tuple['array[int]', 'array[int]', 'array[int]', 'array[int]', 'array[int]', 'array[int]']:
 		# Possible optimisation: Could build prev_use_ind from next_use_ind by
 		# "reversing the pointer direction".
 		# Possible optimisation: Iterate fully before calling len() saves one
@@ -243,24 +251,30 @@ class FullReuseIndex(object):
 		accesses_length = len(accesses)
 
 		prev_use_ind: 'array[int]' = array('Q', itertools.repeat(0, accesses_length))
+		access_ts: 'array[int]' = array('Q', itertools.repeat(0, accesses_length))
 		parts_offset: 'array[int]' = array('Q', itertools.repeat(0, accesses_length))
 		parts: 'array[int]' = array('Q')
 		part_sizes: 'array[int]' = array('Q')
 
 		running_offset = 0
 		for ind, access in enumerate(accesses):
+			prev_use_ind[ind] = prev_access.get(access.file, accesses_length)
+			prev_access[access.file] = ind
+
+			access_ts[ind] = access.access_ts
+
 			sorted_parts = sorted(access.parts)
 			parts.extend(part_ind for part_ind, _ in sorted_parts)
 			part_sizes.extend(part_size for _, part_size in sorted_parts)
 			parts_offset[ind] = running_offset
 			running_offset += len(sorted_parts)
 
-			prev_use_ind[ind] = prev_access.get(access.file, accesses_length)
-			prev_access[access.file] = ind
+		del prev_access
 
 		return (
 			prev_use_ind,
 			ReuseTimer._build_reuse_ind(accesses),
+			access_ts,
 			parts_offset,
 			parts,
 			part_sizes,
