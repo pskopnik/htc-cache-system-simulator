@@ -59,23 +59,52 @@ def test_reuse_timer_random(n_accesses: int, n_files: int) -> None:
 	r = ReuseTimer(accesses)
 	r._verify(accesses)
 
+def test_full_reuse_index_reuses_after_and_before() -> None:
+	accesses = [
+		Access(0, 'a', [(0, 1)]),
+		Access(1, 'a', [(0, 1), (1, 3)]),
+		Access(2, 'a', [(1, 3)]),
+		Access(3, 'b', [(0, 4)]),
+		Access(4, 'b', [(0, 2)]),
+		Access(5, 'b', [(0, 1)]),
+		Access(6, 'b', [(0, 3)]),
+	]
+	fri = FullReuseIndex(accesses)
+
+	assert list(fri.reuses_after(0, fri.parts(0))) == [(1, 0, 1, 1)]
+	assert list(fri.reuses_after(1, fri.parts(1))) == [(2, 1, 3, 3)]
+	assert list(fri.reuses_after(2, fri.parts(2))) == []
+	assert list(fri.reuses_after(3, fri.parts(3))) == [(4, 0, 2, 2), (6, 0, 3, 1)]
+	assert list(fri.reuses_after(4, fri.parts(4))) == [(5, 0, 1, 1), (6, 0, 2, 1)]
+	assert list(fri.reuses_after(5, fri.parts(5))) == [(6, 0, 1, 1)]
+
+	assert list(fri.reuses_before(0, fri.parts(0))) == []
+	assert list(fri.reuses_before(1, fri.parts(1))) == [(0, 0, 1, 1)]
+	assert list(fri.reuses_before(2, fri.parts(2))) == [(1, 1, 3, 3)]
+	assert list(fri.reuses_before(3, fri.parts(3))) == []
+	assert list(fri.reuses_before(4, fri.parts(4))) == [(3, 0, 2, 2)]
+	assert list(fri.reuses_before(5, fri.parts(5))) == [(4, 0, 1, 1)]
+	assert list(fri.reuses_before(6, fri.parts(6))) == [(5, 0, 1, 1), (4, 0, 2, 1), (3, 0, 3, 1)]
+
 def test_full_reuse_index_accessed_after_and_before() -> None:
 	accesses = [
 		Access(0, 'a', [(0, 1)]),
 		Access(1, 'a', [(0, 1), (1, 3)]),
 		Access(2, 'a', [(1, 3)]),
-		Access(3, 'b', [(0, 3)]),
+		Access(3, 'b', [(0, 4)]),
 		Access(4, 'b', [(0, 2)]),
 		Access(5, 'b', [(0, 1)]),
+		Access(6, 'b', [(0, 3)]),
 	]
 	fri = FullReuseIndex(accesses)
 
 	assert fri.accessed_after(0, fri.parts(0)) == [(0, 1)]
 	assert fri.accessed_after(1, fri.parts(1)) == [(1, 3)]
 	assert fri.accessed_after(2, fri.parts(2)) == []
-	assert fri.accessed_after(3, fri.parts(3)) == [(0, 2)]
-	assert fri.accessed_after(4, fri.parts(4)) == [(0, 1)]
-	assert fri.accessed_after(5, fri.parts(5)) == []
+	assert fri.accessed_after(3, fri.parts(3)) == [(0, 3)]
+	assert fri.accessed_after(4, fri.parts(4)) == [(0, 2)]
+	assert fri.accessed_after(5, fri.parts(5)) == [(0, 1)]
+	assert fri.accessed_after(6, fri.parts(6)) == []
 
 	assert fri.accessed_before(0, fri.parts(0)) == []
 	assert fri.accessed_before(1, fri.parts(1)) == [(0, 1)]
@@ -83,6 +112,7 @@ def test_full_reuse_index_accessed_after_and_before() -> None:
 	assert fri.accessed_before(3, fri.parts(3)) == []
 	assert fri.accessed_before(4, fri.parts(4)) == [(0, 2)]
 	assert fri.accessed_before(5, fri.parts(5)) == [(0, 1)]
+	assert fri.accessed_before(6, fri.parts(6)) == [(0, 3)]
 
 @pytest.mark.parametrize('n_accesses,n_files', (
 	(100, 10),

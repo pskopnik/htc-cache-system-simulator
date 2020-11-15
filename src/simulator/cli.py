@@ -332,7 +332,12 @@ def convert_accesses_to_monitoring(args: Any) -> None:
 		])
 
 def workload_stats(args: Any) -> None:
-	if args.summary_stats_file is None and args.accesses_stats_file is None and args.files_stats_file is None:
+	if (
+		args.summary_stats_file is None and
+		args.accesses_stats_file is None and
+		args.bytes_reuse_stats_file is None and
+		args.files_stats_file is None
+	):
 		raise Exception('At least one "*_stats_file" parameter has to be specified.')
 
 	reader = recorder.Reader(args.file_path)
@@ -341,10 +346,15 @@ def workload_stats(args: Any) -> None:
 	if args.cache_processor_index is not None:
 		raise NotImplementedError('Cannot scope to cache processor.')
 
-	it = collector = AssignmentsStatsCollector(reader)
+	it = collector = AssignmentsStatsCollector(it)
 
-	if args.accesses_stats_file is not None:
-		it = write_yield_accesses_stats_as_csv(reader, collector, args.accesses_stats_file)
+	if args.accesses_stats_file is not None or args.bytes_reuse_stats_file is not None:
+		full_reuse_index = FullReuseIndex(reader.drop_cache_processor())
+
+		if args.accesses_stats_file is not None:
+			it = write_yield_accesses_stats_as_csv(it, collector, full_reuse_index, args.accesses_stats_file)
+		if args.bytes_reuse_stats_file is not None:
+			it = write_yield_bytes_reuse_stats_as_csv(it, full_reuse_index, args.bytes_reuse_stats_file)
 
 	it = cache_processors_counter = CacheProcessorsCounter(it)
 
@@ -377,12 +387,11 @@ class CacheProcessorsCounter(object):
 
 
 def write_yield_accesses_stats_as_csv(
-	reader: recorder.Reader,
+	it: Iterable[AccessAssignment],
 	collector: AssignmentsStatsCollector,
+	full_reuse_index: FullReuseIndex,
 	stats_file: TextIO,
 ) -> Iterator[AccessAssignment]:
-	full_reuse_index = FullReuseIndex(reader.drop_cache_processor())
-
 	writer = csv.writer(stats_file)
 	writer.writerow([
 		'time',
@@ -400,7 +409,7 @@ def write_yield_accesses_stats_as_csv(
 
 	active_files = 0
 	active_bytes = 0
-	for ind, assignment in enumerate(collector):
+	for ind, assignment in enumerate(it):
 		active_files += change_to_active_files(full_reuse_index, ind)
 		active_bytes += change_to_active_bytes(full_reuse_index, ind)
 
@@ -417,6 +426,36 @@ def write_yield_accesses_stats_as_csv(
 			active_files,
 			active_bytes,
 		])
+
+		yield assignment
+
+def write_yield_bytes_reuse_stats_as_csv(
+	it: Iterable[AccessAssignment],
+	full_reuse_index: FullReuseIndex,
+	stats_file: TextIO,
+) -> Iterator[AccessAssignment]:
+	writer = csv.writer(stats_file)
+	writer.writerow([
+		'index',
+		'time',
+		'file_key',
+		'part_ind',
+		'bytes_accessed',
+		'previous_use_index',
+		'previous_use_time',
+	])
+
+	for ind, assignment in enumerate(it):
+		for prev_ind, part_ind, _, bytes_accessed in full_reuse_index.reuses_before(ind, full_reuse_index.parts(ind)):
+			writer.writerow([
+				ind,
+				assignment.access.access_ts,
+				assignment.access.file,
+				part_ind,
+				bytes_accessed,
+				prev_ind,
+				full_reuse_index.access_ts(prev_ind),
+			])
 
 		yield assignment
 
@@ -477,6 +516,7 @@ parser_workload_stats.add_argument('-f', '--file', required=True, type=str, dest
 parser_workload_stats.add_argument('--accesses-stats-file', type=argparse.FileType('w'), help='output file to which stats about accesses (one row per access) are written as CSV.')
 parser_workload_stats.add_argument('--files-stats-file', type=argparse.FileType('w'), help='output file to which stats about files (one row per file) are written as CSV.')
 parser_workload_stats.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
+parser_workload_stats.add_argument('--bytes-reuse-stats-file', type=argparse.FileType('w'), help='output file to which stats about byte-level reuses (one row per byte set reuse, i.e. part reuse) are written as CSV.')
 parser_workload_stats.add_argument('--cache-processor-index', type=int, help='index of the cache processor for which stats are computed. If omitted, all cache processors are included.')
 
 def main() -> None:

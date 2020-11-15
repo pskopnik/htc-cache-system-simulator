@@ -206,6 +206,52 @@ class FullReuseIndex(object):
 			if max_size_found > 0:
 				yield part_ind, max_size_found
 
+	def reuses_after(self, after_ind: int, parts: Sequence[PartSpec]) -> Iterator[Tuple[int, PartInd, BytesSize, BytesSize]]:
+		return self._reuses_following(after_ind, self._next_use_ind, parts)
+
+	def reuses_before(self, before_ind: int, parts: Sequence[PartSpec]) -> Iterator[Tuple[int, PartInd, BytesSize, BytesSize]]:
+		return self._reuses_following(before_ind, self._prev_use_ind, parts)
+
+	def _reuses_following(
+		self,
+		start_ind: int,
+		following_use_ind: 'array[int]',
+		parts: Sequence[PartSpec],
+	) -> Iterator[Tuple[int, PartInd, BytesSize, BytesSize]]:
+		# Tracks how many bytes of what part have not been found yet.
+		# missing[part_ind] = (size_requested, max_size_found)
+		# where size_requested is never changed
+		# Possible optimisation: Maintaining missing as front-deletable,
+		# sorted list suffices for fast lookup as parts are sorted in
+		# self._parts as well.
+		missing = {ind: (size, 0) for ind, size in parts}
+
+		# Store variables in the local namespace
+		parts_range = self._parts_range
+		parts_array = self._parts
+		part_sizes_array = self._part_sizes
+
+		accesses_length = len(following_use_ind)
+		next_ind = following_use_ind[start_ind]
+		while len(missing) > 0 and next_ind < accesses_length:
+			for i in parts_range(next_ind):
+				part_ind = parts_array[i]
+				if part_ind not in missing:
+					continue
+
+				part_size = part_sizes_array[i]
+				size_requested, max_size_found = missing[part_ind]
+				if part_size >= size_requested:
+					del missing[part_ind]
+					yield next_ind, part_ind, size_requested, size_requested - max_size_found
+				elif part_size > max_size_found:
+					missing[part_ind] = (size_requested, part_size)
+					yield next_ind, part_ind, part_size, part_size - max_size_found
+				# A generalised method could also yield in case part_size <= max_size_found
+				# (nothing "new", but still a part reuse)
+
+			next_ind = following_use_ind[next_ind]
+
 	def _verify(self, accesses: Sequence[Access]) -> None:
 		accesses_length = len(self._prev_use_ind)
 
