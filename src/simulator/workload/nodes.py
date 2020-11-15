@@ -144,6 +144,7 @@ class LinearGrowthModel(object):
 
 		for ts in self._schedule:
 			size += int(self._growth_rate * (ts - prev_ts))
+			prev_ts = ts
 
 			if self._max_size > 0 and size > self._max_size:
 				size = self._max_size
@@ -187,16 +188,16 @@ class PassiveNode(Node):
 	def _crt_update_data_set_cb(self, action: DataSetAction, total_size: int) -> Callable[[], None]:
 		def inner() -> None:
 			if action is DataSetAction.GROW_SHRINK:
-				if self._data_set.size < total_size:
+				if total_size < self._data_set.size:
 					# TODO is shrinking necessary? Would require an ordering of files
 					# could be arbitrary, random or (reverse) creation order
 					self._data_set.replace(size=total_size)
 				else:
-					self._data_set.grow(self._data_set.size - total_size)
+					self._data_set.grow(total_size - self._data_set.size)
 			elif action is DataSetAction.REPLACE:
 				self._data_set.replace(size=total_size)
 			else:
-				raise NotImplementedError(f'{action!r} not supported by PassiveNode')
+				raise NotImplementedError(f'Action {action!r} not supported by PassiveNode')
 
 		return inner
 
