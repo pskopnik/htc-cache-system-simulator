@@ -370,7 +370,8 @@ def workload_stats(args: Any) -> None:
 		args.summary_stats_file is None and
 		args.accesses_stats_file is None and
 		args.bytes_reuse_stats_file is None and
-		args.files_stats_file is None
+		args.files_stats_file is None and
+		args.bytes_stats_file is None
 	):
 		raise Exception('At least one "*_stats_file" parameter has to be specified.')
 
@@ -396,6 +397,9 @@ def workload_stats(args: Any) -> None:
 
 	if args.files_stats_file is not None:
 		write_files_stats_as_csv(collector.stats, args.files_stats_file)
+
+	if args.bytes_stats_file is not None:
+		write_bytes_stats_as_csv(collector.stats, args.bytes_stats_file)
 
 	if args.summary_stats_file is not None:
 		write_workload_summary_stats_as_csv(collector.stats, cache_processors_counter.count, args.summary_stats_file)
@@ -516,6 +520,28 @@ def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO
 			file_stats.last_access_time,
 		])
 
+def write_bytes_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO) -> None:
+	writer = csv.writer(stats_file)
+	writer.writerow([
+		'file_key',
+		'part_ind',
+		'byte_set_ind',
+		'bytes_size',
+		'total_accesses',
+	])
+
+	for file_key, part_stats in ((file_stats.id, part_stats)
+		for file_stats in counters.files_stats
+		for part_stats in file_stats.parts
+	):
+		writer.writerow([
+			file_key,
+			part_stats.ind,
+			0,
+			part_stats.unique_bytes_accessed,
+			part_stats.accesses,
+		])
+
 parser = argparse.ArgumentParser(description='Simulate HTC cache systems.')
 subparsers = parser.add_subparsers(dest='command', required=True)
 
@@ -550,8 +576,9 @@ parser_workload_stats = subparsers.add_parser('workload-stats', help='Computes c
 parser_workload_stats.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')
 parser_workload_stats.add_argument('--accesses-stats-file', type=argparse.FileType('w'), help='output file to which stats about accesses (one row per access) are written as CSV.')
 parser_workload_stats.add_argument('--files-stats-file', type=argparse.FileType('w'), help='output file to which stats about files (one row per file) are written as CSV.')
+parser_workload_stats.add_argument('--bytes-stats-file', type=argparse.FileType('w'), help='output file to which stats about bytes (one row per set of uniformly accessed bytes ("byte set"), i.e. part) are written as CSV.')
 parser_workload_stats.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
-parser_workload_stats.add_argument('--bytes-reuse-stats-file', type=argparse.FileType('w'), help='output file to which stats about byte-level reuses (one row per byte set reuse, i.e. part reuse) are written as CSV.')
+parser_workload_stats.add_argument('--bytes-reuse-stats-file', type=argparse.FileType('w'), help='output file to which stats about byte-level reuses (one row per reuse of a set of uniformly accessed bytes ("byte set"), i.e. part reuse) are written as CSV.')
 parser_workload_stats.add_argument('--cache-processor-index', type=int, help='index of the cache processor for which stats are computed. If omitted, all cache processors are included.')
 
 def main() -> None:
