@@ -2,6 +2,7 @@ from array import array
 import itertools
 import math
 from typing import (
+	AbstractSet,
 	Callable,
 	cast,
 	Generic,
@@ -9,7 +10,6 @@ from typing import (
 	Iterator,
 	Mapping,
 	Optional,
-	Set,
 	Tuple,
 	TypeVar,
 	Union,
@@ -24,16 +24,12 @@ _T_inner = TypeVar('_T_inner', int, float)
 
 class _BinnedArray(Generic[_T], Mapping[int, _T]):
 	_type_code: str = 'Q'
+	_zero_value: _T = cast(_T, 0)
 
-	@property
-	def _zero_value(self) -> _T:
-		return 0
 
 	class _ValuesView(Generic[_T_inner], ValuesView[_T_inner]):
 		def __init__(self, b_array: '_BinnedArray[_T_inner]') -> None:
-			# The ValuesView constructor is not documented and hence not known
-			# to mypy (typeshed)
-			super(_BinnedArray._ValuesView, self).__init__(b_array) # type: ignore[call-arg]
+			super(_BinnedArray._ValuesView, self).__init__(b_array)
 			self._b_array: _BinnedArray[_T_inner] = b_array
 
 		def __len__(self) -> int:
@@ -54,7 +50,8 @@ class _BinnedArray(Generic[_T], Mapping[int, _T]):
 			else:
 				return iter(self._b_array._bins)
 
-	class _ItemsView(Generic[_T_inner], Set[Tuple[int, _T_inner]]):
+
+	class _ItemsView(Generic[_T_inner], AbstractSet[Tuple[int, _T_inner]]):
 		def __init__(self, b_array: '_BinnedArray[_T_inner]') -> None:
 			self._b_array: _BinnedArray[_T_inner] = b_array
 
@@ -79,6 +76,7 @@ class _BinnedArray(Generic[_T], Mapping[int, _T]):
 				)
 			else:
 				return zip(self._b_array._binner.bin_edges(), self._b_array._bins)
+
 
 	def __init__(self, binner: Binner) -> None:
 		self._binner: Binner = binner
@@ -171,7 +169,9 @@ class _BinnedArray(Generic[_T], Mapping[int, _T]):
 		if self._binner.bounded:
 			return self._binner.bins
 		else:
-			raise TypeError(f'The {self.__class__.__name__} is unbounded, len(.) is undefined')
+			raise TypeError(
+				f'The {self.__class__.__name__} instance is unbounded, len(.) is undefined',
+			)
 
 	def __getitem__(self, num: int) -> _T:
 		return self._get_bin(self._binner(num))
@@ -198,12 +198,109 @@ class _BinnedArray(Generic[_T], Mapping[int, _T]):
 		return _BinnedArray._ValuesView(self)
 
 
-class BinnedCounters(_BinnedArray[int]):
+class _ImmutableMixIn(Generic[_T]):
+	_mutating_exception_msg = 'Mutating methods are not supported on {}'
+
+	def __setitem__(self, num: int, val: _T) -> None:
+		raise TypeError(self._mutating_exception_msg.format(self.__class__.__name__))
+
+	def increment(self, num: int, incr: _T=1) -> None:
+		raise TypeError(self._mutating_exception_msg.format(self.__class__.__name__))
+
+	def decrement(self, num: int, decr: _T=1) -> None:
+		raise TypeError(self._mutating_exception_msg.format(self.__class__.__name__))
+
+	def reset(self) -> None:
+		raise TypeError(self._mutating_exception_msg.format(self.__class__.__name__))
+
+
+class _ModifyMixIn(Generic[_T]):
+	_type_code: str
+	binner: Binner
+	_bins: 'array[_T]'
+	_total: _T
+
+	def update(self, counters: _BinnedArray[_T], ewma_factor: float) -> None:
+		"""Update bin counter values by combining with counters using EWMA.
+
+		ewma_factor is applied to the incoming value counters.bin_data[i] and
+		1 - ewma_factor is applied to the current value self.bin_data[i].
+
+		"""
+
+		if not _binners_similar(counters.binner, self.binner):
+			# TODO: can self still be updated meaningfully, for example when
+			# the first bin_edges align? Or statistical interpolation of each
+			# bin (what about first and last bin of infinite size)?
+			raise ValueError('counters binning scheme is not matching this binning scheme')
+
+		trsf_func: Callable[[float], _T]
+		if self._type_code in ('f', 'd'):
+			trsf_func = cast('Callable[[float], _T]', float)
+		else:
+			trsf_func = cast('Callable[[float], _T]', int)
+
+		self._total = _ewma_update_array(self._bins, counters.bin_data, ewma_factor, trsf_func)
+
+	def set_bin_data(self, data: 'array[_T]') -> None:
+		self._bins = data
+		self._total = sum(self._bins)
+
+
+def _ewma_update_array(
+	orig: 'array[_T]',
+	inp: 'array[_T]',
+	ewma_factor: float,
+	transform_func: Callable[[float], _T],
+) -> _T:
+	decay_factor = 1.0 - ewma_factor
+
+	zero = transform_func(0.0)
+	total = zero
+
+	if len(orig) < len(inp):
+		orig.extend(
+			itertools.repeat(zero, len(inp) - len(orig) + 1),
+		)
+
+	for i in range(len(inp)):
+		# Update each orig element by combining with the value
+		# from the corresponding element of inp using EWMA
+		val = transform_func(
+			ewma_factor * inp[i] + decay_factor * orig[i],
+		)
+		orig[i] = val
+		total += val
+
+	for i in range(len(inp), len(orig)):
+		val = transform_func(decay_factor * orig[i])
+		orig[i] = val
+		total += val
+
+	return total
+
+def _binners_similar(a: Binner, b: Binner) -> bool:
+	if a is b:
+		return True
+	elif a.bins == b.bins:
+		return True
+	else:
+		# TODO: implement equality on Binner
+		# TODO: In Binner.__eq__ (base case) compare the bin_edges of the binners
+		return False
+
+
+class BinnedCounters(_ModifyMixIn[int], _BinnedArray[int]):
 	_type_code: str = 'Q'
 	_zero_value: int = 0
 
 
-class HalvingBinnedCounters(BinnedCounters):
+class BinnedFloats(_ModifyMixIn[float], _BinnedArray[float]):
+	_type_code = 'd'
+	_zero_value: float = 0.0
+
+
+class HalvingBinnedCounters(_BinnedArray[int]):
 	_type_code: str = 'Q'
 	_zero_value: int = 0
 
@@ -243,7 +340,7 @@ class HalvingBinnedCounters(BinnedCounters):
 		self._set_bin = set_bin
 
 
-class BinnedProbabilities(_BinnedArray[float]):
+class BinnedProbabilities(_ImmutableMixIn[float], _BinnedArray[float]):
 	_type_code = 'd'
 	_mutating_exception_msg = 'Mutating methods are not supported on BinnedProbabilities'
 	_zero_value: float = 0.0
@@ -251,18 +348,6 @@ class BinnedProbabilities(_BinnedArray[float]):
 	@property
 	def total(self) -> float:
 		return 1.0
-
-	def __setitem__(self, num: int, val: float) -> None:
-		raise TypeError(self._mutating_exception_msg)
-
-	def increment(self, num: int, incr: float=1) -> None:
-		raise TypeError(self._mutating_exception_msg)
-
-	def decrement(self, num: int, decr: float=1) -> None:
-		raise TypeError(self._mutating_exception_msg)
-
-	def reset(self) -> None:
-		raise TypeError(self._mutating_exception_msg)
 
 	@classmethod
 	def from_counters(cls, counters: BinnedCounters) -> 'BinnedProbabilities':
@@ -293,28 +378,13 @@ class CountedProbabilities(BinnedProbabilities):
 			if ewma_factor is None:
 				raise ValueError('ewma_factor argument must be passed')
 
-		# TODO: also compare the bin_edges of the self.binner and
-		# counters.binner
-		if counters.binner.bins != self.binner.bins:
+		if not _binners_similar(counters.binner, self.binner):
 			# TODO: can self still be updated meaningfully, for example when
 			# the first bin_edges align? Or statistical interpolation of each
 			# bin (what about first and last bin of infinite size)?
 			raise ValueError('counters binning scheme is not matching this binning scheme')
 
-		if self.binner.bins == -1 and len(self._counters_bins) < len(counters.bin_data):
-			self._counters_bins.extend(
-				itertools.repeat(0, len(counters.bin_data) - len(self._counters_bins) + 1),
-			)
-
-		total = 0
-		for i in range(len(self._counters_bins)):
-			# Update each self._counters_bins bin by combining with the value
-			# from the corresponding bin of counters using EWMA
-			val = int(
-				ewma_factor * counters.bin_data[i] + (1 - ewma_factor) * self._counters_bins[i],
-			)
-			self._counters_bins[i] = val
-			total += val
+		total = _ewma_update_array(self._counters_bins, counters.bin_data, ewma_factor, int)
 
 		self._bins = array(self._type_code, (count / total for count in self._counters_bins))
 

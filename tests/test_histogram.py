@@ -5,6 +5,7 @@ import random
 from typing import (
 	AbstractSet,
 	Callable,
+	cast,
 	Collection,
 	Iterable,
 	Iterator,
@@ -23,6 +24,7 @@ from typing_extensions import Protocol
 
 from simulator.dstructures.binning import Binner, LogBinner
 from simulator.dstructures.histogram import (
+	_ewma_update_array,
 	BinnedCounters,
 	BinnedProbabilities,
 	CountedProbabilities,
@@ -153,61 +155,34 @@ def _assert_binned_array_basics(
 
 	assert list(slice_for_assert(a.keys())) == list(slice_for_assert(b.bin_edges()))
 
-def test_bounded_binned_counters() -> None:
-	b = LogBinner(first=9, last=20)
-	c = BinnedCounters(b)
+@pytest.fixture(params=[
+	(LogBinner, tuple(), {}), # type: ignore[no-untyped-def]
+	(LogBinner, (), {'first': 9, 'last': 20}),
+])
+def any_binner(request) -> Binner:
+	return cast(Binner, request.param[0](*request.param[1], **request.param[2]))
 
-	_assert_binned_array_basics(b, c)
-	_assert_binned_array_equal(c, [0] * b.bins)
+def test_ewma_update_array() -> None:
+	orig = array('Q', [0] * 10 + [8] * 2)
+	inp = array('Q', [8] * 2 + [0] * 10)
 
-	for num in random_bin_nums(b):
-		c.increment(num)
-	_assert_binned_array_equal(c, [1] * b.bins)
+	_ewma_update_array(orig, inp, 1/4, int)
+	assert list(orig) == [2] * 2 + [0] * 8 + [6] * 2
 
-	for num in random_bin_nums(b):
-		c[num] += 10
-	_assert_binned_array_equal(c, [11] * b.bins)
+	_ewma_update_array(orig, inp, 1/2, int)
+	assert list(orig) == [5] * 2 + [0] * 8 + [3] * 2
 
-	for num in random_bin_nums(b):
-		c.decrement(num)
-	_assert_binned_array_equal(c, [10] * b.bins)
+def test_binned_counters(any_binner: Binner) -> None:
+	b, c = any_binner, BinnedCounters(any_binner)
 
-	for num in random_bin_nums(b):
-		c.decrement(num, decr=5)
-	_assert_binned_array_equal(c, [5] * b.bins)
-
-	for num in random_bin_nums(b):
-		c.increment(num, incr=5)
-	_assert_binned_array_equal(c, [10] * b.bins)
-
-	for num in random_bin_nums(b):
-		c[num] = 1
-	_assert_binned_array_equal(c, [1] * b.bins)
-
-	c.reset()
-	_assert_binned_array_basics(b, c)
-	_assert_binned_array_equal(c, [0] * b.bins)
-
-	# test __getitem__() resolving correctly for bin limits
-	for bin in range(b.bins):
-		first, past = b.bin_limits(bin)
-		c[first] = bin
-		if past == -1:
-			continue
-		assert c[first] == c[past - 1]
-	_assert_binned_array_equal(c, list(range(b.bins)))
-
-def test_unbounded_binned_counters() -> None:
-	b = LogBinner()
-	c = BinnedCounters(b)
-
-	# TODO: extract specifics into fixture, then merge with bounded test
-
-	check_count = 20
-	post_check_count = 10
+	check_count = b.bins if b.bounded else 20
+	post_check_count = 0 if b.bounded else 10
 
 	def counters_list_from_value(val: int) -> List[int]:
-		return [val] * check_count + [0] * post_check_count
+		if b.bounded:
+			return [val] * b.bins
+		else:
+			return [val] * check_count + [0] * post_check_count
 
 	_assert_binned_array_basics(b, c)
 	_assert_binned_array_equal(c, counters_list_from_value(0))
@@ -249,23 +224,50 @@ def test_unbounded_binned_counters() -> None:
 		assert c[first] == c[past - 1]
 	_assert_binned_array_equal(c, list(range(check_count)) + [0] * post_check_count)
 
-def test_halving_binned_counters() -> None:
-	# TODO: test unbounded
-	b = LogBinner(first=9, last=20)
-	# TODO: test passing max_total and passing (max_bin, max_total)
-	c = HalvingBinnedCounters(b, factor=1/2, max_bin=10)
+def test_binned_counters_update(any_binner: Binner) -> None:
+	b, c = any_binner, BinnedCounters(any_binner)
+	c_tmp = BinnedCounters(any_binner)
+
+	vals = [0] * 10 + [8] * 2
+	for num, val in zip(random_bin_nums(b), vals):
+		c[num] = val
 
 	_assert_binned_array_basics(b, c)
-	_assert_binned_array_equal(c, [0] * b.bins)
+	_assert_binned_array_equal(c, vals)
 
-	vals = [8] * b.bins
+	vals = [8] * 2 + [0] * 10
+	for num, val in zip(random_bin_nums(b), vals):
+		c_tmp[num] = val
+
+	c.update(c_tmp, ewma_factor=1/4)
+
+	_assert_binned_array_equal(c, [2] * 2 + [0] * 8 + [6] * 2)
+
+def test_binned_counters_set_bin_data(any_binner: Binner) -> None:
+	b, c = any_binner, BinnedCounters(any_binner)
+
+	vals = [0] * 10 + [8] * 2
+	c.set_bin_data(array('Q', vals))
+	_assert_binned_array_basics(b, c)
+	_assert_binned_array_equal(c, vals)
+
+def test_halving_binned_counters(any_binner: Binner) -> None:
+	# TODO: test passing max_total and passing (max_bin, max_total)
+	b, c = any_binner, HalvingBinnedCounters(any_binner, factor=1/2, max_bin=10)
+
+	check_count = b.bins if b.bounded else 20
+
+	_assert_binned_array_basics(b, c)
+	_assert_binned_array_equal(c, [0] * check_count)
+
+	vals = [8] * check_count
 	for num, val in zip(random_bin_nums(b), vals):
 		c[num] = val
 
 	_assert_binned_array_equal(c, vals)
 
 	# Pick number to change
-	num = b.bin_limits(random.randrange(b.bins))[0]
+	num = b.bin_limits(random.randrange(check_count))[0]
 
 	# No update as 10 is the maximum allowed value for each bin
 	c[num] = 10
@@ -292,12 +294,12 @@ def test_halving_binned_counters() -> None:
 
 	c.reset()
 	_assert_binned_array_basics(b, c)
-	_assert_binned_array_equal(c, [0] * b.bins)
+	_assert_binned_array_equal(c, [0] * check_count)
 
-def test_binned_probabilities() -> None:
-	# TODO: test unbounded
-	b = LogBinner(first=9, last=20)
-	c = BinnedCounters(b)
+def test_binned_probabilities(any_binner: Binner) -> None:
+	b, c = any_binner, BinnedCounters(any_binner)
+
+	check_count = b.bins if b.bounded else 20
 
 	vals = [0] * 4 + [1] * 4 + [3] * 4
 	for num, val in zip(random_bin_nums(b), vals):
@@ -313,7 +315,7 @@ def test_binned_probabilities() -> None:
 	_assert_binned_array_equal(p, [0.0] * 4 + [1/16] * 4 + [3/16] * 4)
 
 	# Pick number to change
-	num = b.bin_limits(random.randrange(b.bins))[0]
+	num = b.bin_limits(random.randrange(check_count))[0]
 
 	with pytest.raises(TypeError):
 		p.increment(num)
@@ -324,10 +326,10 @@ def test_binned_probabilities() -> None:
 	with pytest.raises(TypeError):
 		p[num] = 0.2
 
-def test_counted_probabilities() -> None:
-	# TODO: test unbounded
-	b = LogBinner(first=9, last=20)
-	c = BinnedCounters(b)
+def test_counted_probabilities(any_binner: Binner) -> None:
+	b, c = any_binner, BinnedCounters(any_binner)
+
+	check_count = b.bins if b.bounded else 20
 
 	vals = [0] * 10 + [8] * 2
 	for num, val in zip(random_bin_nums(b), vals):
@@ -369,7 +371,7 @@ def test_counted_probabilities() -> None:
 	_assert_binned_array_equal(p, [5/8/2] * 2 + [0.0] * 8 + [3/8/2] * 2)
 
 	# Pick number to change
-	num = b.bin_limits(random.randrange(b.bins))[0]
+	num = b.bin_limits(random.randrange(check_count))[0]
 
 	with pytest.raises(TypeError):
 		p.increment(num)
