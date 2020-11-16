@@ -1,12 +1,13 @@
 import argparse
 import collections
 import csv
+from dataclasses import dataclass, field
 import functools
 import itertools
 import sys
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, Optional, Sequence, TextIO, Tuple
 
-from .workload import Access, Task
+from .workload import Access, BytesRate, Task
 from .workload.models.pags import (
 	build as build_pags,
 	load_params as load_pags_params,
@@ -20,6 +21,7 @@ from .workload.models.random import (
 	load_params as load_random_params,
 )
 from .workload.stats import StatsCounters as WorkloadStatsCounters
+from .workload.units import MiB
 from .distributor import (
 	AccessAssignment,
 	Distributor,
@@ -50,6 +52,7 @@ from .cache.algorithms.obma import OBMA
 from .cache.algorithms.rand import Rand
 from .cache.algorithms.size import Size
 
+from .params import parse_user_args, SimpleField
 from .utils import consume
 
 def filter_accesses_stop_early(
@@ -132,10 +135,41 @@ class StopEarlyPredicate(recorder.Predicate):
 		))
 
 
+@dataclass
+class NodesConfiguration(object):
+	nodes: int = field(init=True, default=1)
+	cores_per_node: int = field(init=True, default=1)
+	core_throughput: BytesRate = field(init=True, default=1 * MiB)
+	cache_processors: int = field(init=True, default=1)
+
+	@classmethod
+	def from_user_args(cls, user_args: str) -> 'NodesConfiguration':
+		inst = cls()
+		parse_user_args(user_args, inst, [
+			SimpleField('nodes', int),
+			SimpleField('cores_per_node', int),
+			SimpleField('core_throughput', BytesRate),
+			SimpleField('cache_processors', int),
+		])
+		return inst
+
+
+def build_nodes_from_configuration(configuration: NodesConfiguration) -> Iterable[NodeSpec]:
+	return (NodeSpec(
+		configuration.cores_per_node,
+		configuration.core_throughput,
+		cache_processor,
+	) for cache_processor, _ in zip(
+		itertools.cycle(range(configuration.cache_processors)),
+		range(configuration.nodes),
+	))
+
 def record(args: Any) -> None:
 	tasks = tasks_from_args(args)
 
-	nodes = (NodeSpec(32, 10*1024*1024, 0) for _ in range(100))
+	nodes = build_nodes_from_configuration(
+		NodesConfiguration.from_user_args(args.nodes_configuration),
+	)
 
 	distributor = Distributor(nodes, tasks)
 
@@ -482,17 +516,18 @@ def write_files_stats_as_csv(counters: WorkloadStatsCounters, stats_file: TextIO
 			file_stats.last_access_time,
 		])
 
-parser = argparse.ArgumentParser(description='Simulate HTC cache system.')
+parser = argparse.ArgumentParser(description='Simulate HTC cache systems.')
 subparsers = parser.add_subparsers(dest='command', required=True)
 
 parser_record = subparsers.add_parser('record', help='Generate cache-seen accesses by jobs yielded by a workload generator and scheduled to a node set.')
 parser_record.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='output file to which the accesses are written.')
 parser_record.add_argument('--generate-accesses', type=int, help='number of accesses to generate. Limit; iterates as long as all limits hold semantic.')
 parser_record.add_argument('--generate-time', type=int, help='number of seconds to generate. Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
-parser_record.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
 parser_record.add_argument('--model', required=True, type=str, help='workload model used to generate the workload.')
 parser_record.add_argument('--model-params-file', required=True, type=argparse.FileType('r'), help='JSON file containing the parameters for the workload model.')
+parser_record.add_argument('--nodes-configuration', type=str, help='Configuration parameters for constructing the specification of the worker nodes of the cluster.')
 parser_record.add_argument('--seed', type=int, help='Seed for initialising the pseudo-random number generator. If not passed a seed is chosen by the python default behaviour.')
+parser_record.add_argument('--summary-stats-file', type=argparse.FileType('w'), help='output file to which summary stats about the entire access sequence (headers and one row) are written as CSV.')
 
 parser_replay = subparsers.add_parser('replay', help='Perform cache algorithms on a recorded sequence of accesses.')
 parser_replay.add_argument('-f', '--file', required=True, type=str, dest='file_path', help='input file from which the accesses are read.')
@@ -502,7 +537,7 @@ parser_replay.add_argument('--process-accesses', type=int, help='number of acces
 parser_replay.add_argument('--process-time', type=int, help='number of seconds to be processed (including warm-up). Limit; iterates as long as all limits hold semantic.') # missing: unique bytes read, total bytes read
 parser_replay.add_argument('--cache-processors-count', type=int, default=1, help='number of simulated cache processors, must match recorded accesses.')
 parser_replay.add_argument('--cache-processor', required=True, type=str, help='cache processor type (algorithm to use) to be simulated.')
-parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to the each cache processor.')
+parser_replay.add_argument('--cache-processor-args', type=str, help='arguments passed to each cache processor instance.')
 parser_replay.add_argument('--storage-size', required=True, type=int, help='size of the cache storage volumes in bytes.')
 parser_replay.add_argument('--non-shared-storage', action='store_false', dest='shared_storage', help='each cache processor receives its own storage volume if set.')
 parser_replay.add_argument('--cache-info-file', type=str, dest='cache_info_file_path', help='output file to which cache info data is written, i.e. hit and miss info for each access.')

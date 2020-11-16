@@ -14,7 +14,7 @@ What kind of user inputs are there?
 -22.3e45 - not so simple float
 10 GiB - annotated number (int result, float user input)
 greedy - string tag
-total_size - string tag containing characters
+total_size - string tag containing _ characters
 average active bytes - string with spaces (multi-word)
 access_size&dirname - sub-parseable string
 access_size&dirname(top=1) - sub-parseable string
