@@ -89,7 +89,10 @@ class StateDrivenProcessor(object):
 				in_cache_bytes,
 				[],
 			)
-			self._state.process_access(access.file, ind, False, info)
+			# In a distributed cache processors environment, the cache processor may not track the
+			# file, thus, the processor must ensure the file is tracked.
+			ensure = True
+			self._state.process_access(access.file, ind, ensure, info)
 			return info
 
 		free_bytes = self._storage.free_bytes
@@ -139,8 +142,10 @@ class StateDrivenProcessor(object):
 			total_bytes,
 			evicted_files,
 		)
-		# If any byte is in cache, the state tracks the file
-		ensure = in_cache_bytes == 0
+		# If any byte is in cache, the state should track the file
+		# ensure = in_cache_bytes == 0
+		# However, in a distributed cache processors environment, it might not
+		ensure = True
 		self._state.process_access(access.file, ind, ensure, info)
 		return info
 
