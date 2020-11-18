@@ -123,7 +123,10 @@ class StatsCounters(stats.StatsCounters):
 		self._total_stats.bytes_removed += access_info.bytes_removed
 
 		for file in access_info.evicted_files:
-			self._cache_files_stats[file].last_residence_end = access_info.access.access_ts
+			try:
+				self._cache_files_stats[file].last_residence_end = access_info.access.access_ts
+			except KeyError:
+				pass
 
 
 class StatsCollector(object):
