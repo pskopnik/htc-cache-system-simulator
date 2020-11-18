@@ -54,7 +54,7 @@ class TotalStats(stats.TotalStats):
 
 	def __init__(self) -> None:
 		super(TotalStats, self).__init__()
-		self.file_hit: int = 0
+		self.files_hit: int = 0
 		self.files_missed: int = 0
 		self.bytes_hit: BytesSize = 0
 		self.bytes_missed: BytesSize = 0
