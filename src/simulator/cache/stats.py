@@ -13,8 +13,8 @@ class FileStats(stats.FileStats):
 		'bytes_added',
 		# 'bytes_removed', # not precisely known
 		'bytes_removed_due',
-		'last_residence_begin',
-		'last_residence_end',
+		'last_residency_begin',
+		'last_residency_end',
 	]
 
 	def __init__(self, id: FileID) -> None:
@@ -26,8 +26,10 @@ class FileStats(stats.FileStats):
 		self.bytes_added: BytesSize = 0
 		# self.bytes_removed: int = 0 # not precisely known
 		self.bytes_removed_due: BytesSize = 0
-		self.last_residence_begin: TimeStamp = 0
-		self.last_residence_end: TimeStamp = 0
+		self.last_residency_begin: TimeStamp = 0
+		# unfortunately last_residency_end == 0 may either mean "unset" or an
+		# residency end at time 0
+		self.last_residency_end: TimeStamp = 0
 
 	def reset(self) -> None:
 		super(FileStats, self).reset()
@@ -38,8 +40,8 @@ class FileStats(stats.FileStats):
 		self.bytes_added = 0
 		# self.bytes_removed = 0 # not precisely known
 		self.bytes_removed_due = 0
-		self.last_residence_begin = 0
-		self.last_residence_end = 0
+		self.last_residency_begin = 0
+		self.last_residency_end = 0
 
 
 class TotalStats(stats.TotalStats):
@@ -115,7 +117,7 @@ class StatsCounters(stats.StatsCounters):
 		else:
 			file_stats.misses += 1
 			self._total_stats.files_missed += 1
-			file_stats.last_residence_begin = access_info.access.access_ts
+			file_stats.last_residency_begin = access_info.access.access_ts
 
 		self._total_stats.bytes_hit += access_info.bytes_hit
 		self._total_stats.bytes_missed += access_info.bytes_missed
@@ -124,7 +126,7 @@ class StatsCounters(stats.StatsCounters):
 
 		for file in access_info.evicted_files:
 			try:
-				self._cache_files_stats[file].last_residence_end = access_info.access.access_ts
+				self._cache_files_stats[file].last_residency_end = access_info.access.access_ts
 			except KeyError:
 				pass
 
