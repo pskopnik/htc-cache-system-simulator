@@ -15,6 +15,7 @@
                 "final_size",
                 "growth_rate",
                 "file_size",
+                "files_per_directory",
                 "schedule"
             ],
             "properties": {
@@ -29,6 +30,10 @@
                 },
                 "file_size": {
                     "$ref": "#/$defs/bytes_size"
+                },
+                "files_per_directory": {
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "schedule": {
                     "type": "object",

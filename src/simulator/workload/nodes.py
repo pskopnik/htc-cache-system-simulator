@@ -170,10 +170,20 @@ class ReplaceModel(object):
 
 
 class PassiveNode(Node):
-	def __init__(self, dse_model: DSEModel, output_file_size: int, name: Optional[str]=None):
+	def __init__(self,
+		dse_model: DSEModel,
+		output_file_size: int,
+		output_files_per_directory: int,
+		name: Optional[str] = None,
+	):
 		super(PassiveNode, self).__init__(name=name)
 
-		self._data_set.reinitialise(file_size=output_file_size, name=f'output of {self!s}')
+		self._data_set.reinitialise(
+			file_size = output_file_size,
+			files_per_directory = output_files_per_directory,
+			directory_per_generation = False,
+			name = f'output of {self!s}',
+		)
 		self._dse_model: DSEModel = dse_model
 
 		self._iter_dse_model, self._update_dse_model = itertools.tee(self._dse_model, 2)

@@ -40,11 +40,13 @@ class DataSet(object):
 		self,
 		file_size: int = 0,
 		files_per_directory: int = 0,
+		directory_per_generation: bool = True,
 		name: Optional[str] = None,
 		size: int = 0,
 	) -> None:
 		self._file_size: int = file_size
 		self._files_per_directory: int = files_per_directory
+		self._directory_per_generation: bool = directory_per_generation
 		self._name: Optional[str] = name
 
 		self._file_list: List[FileID] = []
@@ -96,14 +98,15 @@ class DataSet(object):
 		self,
 		file_size: Optional[int] = None,
 		files_per_directory: Optional[int] = None,
+		directory_per_generation: Optional[bool] = True,
 		name: Optional[str] = None,
 		size: int = 0,
 	) -> None:
 		"""Reinitialises selected data set parameters.
 
-		The new values of file_size, files_per_directory and name are taken on
-		if not None and the file_list is cleared. If size is greater than 0, a
-		list of files is generated. generation is not reset.
+		The new values of file_size, files_per_directory, directory_per_generation
+		and name are taken on if not None and the file_list is cleared. If size is
+		greater than 0, a list of files is generated. generation is not reset.
 
 		This method is useful for late and staggered initialisation.
 		"""
@@ -111,6 +114,8 @@ class DataSet(object):
 			self._file_size = file_size
 		if files_per_directory is not None:
 			self._files_per_directory = files_per_directory
+		if directory_per_generation is not None:
+			self._directory_per_generation = directory_per_generation
 		if name is not None:
 			self._name = name
 
@@ -179,6 +184,8 @@ class DataSet(object):
 			)
 
 		base = f'{id(self)}/'
+		if self._directory_per_generation:
+			base += f'{self._generation}g/'
 
 		return (
 			f'{base}{dir}{i}' for dir, i in zip(dir_it, range(first_id, end_id))

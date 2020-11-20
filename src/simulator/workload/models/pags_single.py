@@ -30,6 +30,7 @@ class Spec(object):
 	class RootParams(TypedDict):
 		size: BytesSize
 		file_size: BytesSize
+		files_per_directory: int
 		schedule: 'Spec.Schedule'
 
 
@@ -60,6 +61,7 @@ example_params: Spec.Params = {
 	'root': {
 		'size': 10 * TiB,
 		'file_size': 1 * GiB,
+		'files_per_directory': 1000,
 		'schedule': {
 			'normal_distribution': {
 				'mu': 30 * day,
@@ -97,6 +99,7 @@ def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
 			),
 		),
 		params['root']['file_size'],
+		params['root']['files_per_directory'],
 		name = 'pseudo root task',
 	)
 	root_layer.append(root_node)

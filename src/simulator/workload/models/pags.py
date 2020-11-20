@@ -45,6 +45,7 @@ class Spec(object):
 		final_size: BytesSize
 		growth_rate: BytesRate
 		file_size: BytesSize
+		files_per_directory: int
 		schedule: 'Spec.Schedule'
 
 
@@ -96,6 +97,7 @@ c_0_params: Spec.Params = {
 		'final_size': 100 * TiB,
 		'growth_rate': round((100 * TiB - 10 * TiB) / (2 * 365 * day)),
 		'file_size': 5 * GiB,
+		'files_per_directory': 1000,
 		'schedule': {
 			'normal_distribution': {
 				'mu': 90 * day,
@@ -158,6 +160,7 @@ def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
 			params['aod']['final_size'],
 		),
 		params['aod']['file_size'],
+		params['aod']['files_per_directory'],
 		name = 'pseudo AOD grid task',
 	)
 	grid_layer.append(root_node)
