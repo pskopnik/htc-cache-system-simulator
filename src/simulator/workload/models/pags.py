@@ -108,8 +108,8 @@ c_0_params: Spec.Params = {
 	'skim': {
 		'node_spread': 7,
 		'read_fraction': 0.2,
-		'job_read_size': 2 * GiB,
-		'output_fraction': 0.1,
+		'job_read_size': 10 * GiB,
+		'output_fraction': 0.01,
 		'file_size': 100 * MiB,
 		'delay_schedule': {
 			'lognormal_distribution': {
