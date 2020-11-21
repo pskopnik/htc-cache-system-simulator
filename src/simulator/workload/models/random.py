@@ -6,6 +6,7 @@ from random import Random
 
 from .. import (
 	AccessRequest,
+	BytesRate,
 	BytesSize,
 	FileID,
 	Job,
@@ -19,8 +20,6 @@ from ..dataset import DataSet
 from ..jsonparams import load_validate_transform
 from ..schemes import NonCorrelatedSchemesGenerator
 from ..units import MiB, GiB, TiB
-
-BytesRate = int
 
 
 class RandomNode(Node):

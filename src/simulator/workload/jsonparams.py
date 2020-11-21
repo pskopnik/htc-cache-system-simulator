@@ -53,9 +53,14 @@ def load_validate_transform(
 		el = instance
 		path_list = list(path)
 
-		for item_name in path_list[:-1]:
-			el = el[item_name]
+		try:
+			for item_name in path_list[:-1]:
+				el = el[item_name]
 
-		el[path_list[-1]] = _transformers[typ](el[path_list[-1]])
+			orig_value = el[path_list[-1]]
+		except KeyError:
+			continue
+
+		el[path_list[-1]] = _transformers[typ](orig_value)
 
 	return instance

@@ -1,11 +1,11 @@
 import functools
 import itertools
 import math
-from typing import AnyStr, cast, IO, List, Optional
+from typing import AnyStr, cast, IO, Iterable, Iterator, List, Optional
 from typing_extensions import TypedDict
 from random import Random
 
-from .. import BytesRate, BytesSize
+from .. import AccessRequest, BytesRate, BytesSize, Job, Submitter, TimeStamp
 from ..jsonparams import load_validate_transform
 from ..nodes import (
 	ComputingNode,
@@ -19,6 +19,59 @@ from ..nodes import (
 )
 from ..schemes import NonCorrelatedSchemesGenerator
 from ..units import MiB, GiB, TiB, day
+from ...utils import repeat_each
+
+
+class SimpleNoiseNode(Node):
+	class _Submitter(Submitter):
+		def __init__(self, node: 'SimpleNoiseNode') -> None:
+			super(SimpleNoiseNode._Submitter, self).__init__(0, origin=node)
+
+			self._node: SimpleNoiseNode = node
+
+		def _files_generator(self) -> Iterator[str]:
+			base = f'{id(self)}/'
+
+			dir_it: Iterable[str] = itertools.repeat('')
+			if self._node._files_per_directory > 0:
+				dir_it = repeat_each(
+					(f'{i}/' for i in itertools.count()),
+					self._node._files_per_directory,
+				)
+
+			return (
+				f'{base}{dir}{i}' for i, dir in enumerate(dir_it)
+			)
+
+		def __iter__(self) -> Iterator[Job]:
+			submit_rate = self._node._submit_rate
+			read_size = self._node._file_size
+			parts = [(0, read_size)]
+
+			total_submitted: int = 0
+			ts: TimeStamp = 0
+			for file in self._files_generator():
+				yield Job(ts, [AccessRequest(file, parts)])
+
+				total_submitted += read_size # TODO is this safe (ever growing)?
+				ts = math.ceil(total_submitted / submit_rate)
+
+
+	def __init__(
+		self,
+		file_size: BytesSize,
+		files_per_directory: int,
+		submit_rate: BytesRate,
+		name: Optional[str] = None,
+	) -> None:
+		super(SimpleNoiseNode, self).__init__(name=name)
+
+		self._file_size: BytesSize = file_size
+		self._files_per_directory: int = files_per_directory
+		self._submit_rate: BytesRate = submit_rate
+
+	def __iter__(self) -> Iterator[Submitter]:
+		yield SimpleNoiseNode._Submitter(self)
 
 
 class Spec(object):
@@ -67,10 +120,20 @@ class Spec(object):
 		schedule: 'Spec.Schedule'
 
 
-	class Params(TypedDict):
+	class SimpleNoiseParams(TypedDict):
+		file_size: BytesSize
+		files_per_directory: int
+		submit_rate: BytesRate
+
+
+	class RequiredParams(TypedDict):
 		aod: 'Spec.AODParams'
 		skim: 'Spec.SkimParams'
 		ana: 'Spec.AnaParams'
+
+
+	class Params(RequiredParams, total=False):
+		simple_noise: 'Spec.SimpleNoiseParams'
 
 
 def load_params(params_file: IO[AnyStr]) -> Spec.Params:
@@ -86,6 +149,8 @@ def load_params(params_file: IO[AnyStr]) -> Spec.Params:
 			(('skim', 'file_size'), 'bytes_size'),
 			(('ana', 'job_read_size'), 'bytes_size'),
 			(('ana', 'file_size'), 'bytes_size'),
+			(('simple_noise', 'file_size'), 'bytes_size'),
+			(('simple_noise', 'submit_rate'), 'bytes_rate'),
 		],
 	))
 
@@ -114,14 +179,7 @@ c_0_params: Spec.Params = {
 		'delay_schedule': {
 			'lognormal_distribution': {
 				'mu': math.log(2 * day),
-				'sigma': 1.4, # TODO detail calculation
-				# R plot
-				# tibble(
-				# 	x = seq(1, 60*24*60*60, 60*60),
-				# 	dens = dlnorm(x, meanlog=log(2*24*60*60), sdlog=1.4),
-				# 	dist = plnorm(x, meanlog=log(2*24*60*60), sdlog=1.4)
-				# ) %>%
-				# 	ggplot() + geom_line(aes(x=x/24/60/60, y=dist))
+				'sigma': 1.4, # Chosen to give reasonable percentiles
 			},
 		},
 	},
@@ -224,5 +282,15 @@ def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
 			ana_layer.append(node)
 
 	nodes.extend(ana_layer)
+
+	if 'simple_noise' in params:
+		simple_noise_params = params['simple_noise']
+		if simple_noise_params['submit_rate'] > 0.0 and simple_noise_params['file_size'] > 0:
+			simple_noise_node = SimpleNoiseNode(
+				simple_noise_params['file_size'],
+				simple_noise_params['files_per_directory'],
+				simple_noise_params['submit_rate'],
+			)
+			nodes.append(simple_noise_node)
 
 	return nodes
