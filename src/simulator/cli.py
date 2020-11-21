@@ -40,7 +40,7 @@ from .cache.stats import StatsCounters as CacheStatsCounters
 from .cache.storage import Storage
 
 from .cache.algorithms.arc import ARCBit
-from .cache.algorithms.eva import EVA
+from .cache.algorithms.eva import EVA, EVABit
 from .cache.algorithms.fifo import FIFO
 from .cache.algorithms.greedydual import GreedyDual, Mode as GreedyDualMode
 from .cache.algorithms.landlord import Landlord, Mode as LandlordMode
@@ -321,6 +321,8 @@ def processor_factory_from_args(args: Any) -> Tuple[Callable[[Storage], Processo
 		return partial(ARCBit, ARCBit.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'eva':
 		return partial(EVA, EVA.Configuration.from_user_args(user_args)), True, False
+	elif args.cache_processor == 'evabit':
+		return partial(EVABit, EVA.Configuration.from_user_args(user_args)), True, False
 	elif args.cache_processor == 'fifo':
 		return FIFO, True, False
 	elif args.cache_processor == 'greedydual':
