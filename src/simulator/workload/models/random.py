@@ -34,20 +34,18 @@ class RandomNode(Node):
 			data_set = self._node._input_data_set
 			submit_rate = self._node._submit_rate
 
-			# cached_file_size = data_set.file_size
-			# cached_parts = self._node._parts_generator.parts(cached_file_size)
-			# cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
+			cached_file_size = data_set.file_size
+			cached_parts = self._node._parts_generator.parts(cached_file_size)
+			cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
 
 			def create_access_scheme(file: FileID) -> Tuple[AccessRequest, BytesSize]:
-				# nonlocal data_set, cached_file_size, cached_bytes_accessed, cached_parts
+				nonlocal data_set, cached_file_size, cached_bytes_accessed, cached_parts
 
-				parts = self._node._random.choice(self._node._schemes)
-				return AccessRequest(file, parts), sum(byte_count for _, byte_count in parts)
-				# if data_set.file_size != cached_file_size:
-				# 	cached_file_size = data_set.file_size
-				# 	cached_parts = self._node._parts_generator.parts(cached_file_size)
-				# 	cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
-				# return AccessRequest(file, cached_parts), cached_bytes_accessed
+				if data_set.file_size != cached_file_size:
+					cached_file_size = data_set.file_size
+					cached_parts = self._node._parts_generator.parts(cached_file_size)
+					cached_bytes_accessed = sum(byte_count for _, byte_count in cached_parts)
+				return AccessRequest(file, cached_parts), cached_bytes_accessed
 
 			total_submitted: int = 0
 			ts: TimeStamp = 0
@@ -66,8 +64,7 @@ class RandomNode(Node):
 		self,
 		input_data_set: DataSet,
 		submit_rate: float,
-		schemes: List[List[PartSpec]],
-		# parts_generator: PartsGenerator,
+		parts_generator: PartsGenerator,
 		random: Random,
 		name: Optional[str] = None,
 	) -> None:
@@ -75,8 +72,7 @@ class RandomNode(Node):
 
 		self._input_data_set: DataSet = input_data_set
 		self._submit_rate: float = submit_rate
-		self._schemes: List[List[PartSpec]] = schemes
-		#self._parts_generator: PartsGenerator = parts_generator
+		self._parts_generator: PartsGenerator = parts_generator
 		self._random: Random = random
 
 	def __iter__(self) -> Iterator[Submitter]:
@@ -133,16 +129,14 @@ def build(params: Spec.Params, seed: Optional[int]=None) -> List[Node]:
 		params['read_fraction'],
 	)
 
-	# for i in range(params['no_of_tasks']):
-	node = RandomNode(
-		data_set, # input_data_set
-		params['submit_rate'], # submit_rate
-		[schemes_generator.parts(i, data_set.file_size) for i in range(params['no_of_tasks'])],
-		# schemes_generator.with_index(i), # parts_generator
-		random,
-		name = f'computing task',
-		# name = f'computing task #{i}',
-	)
-	nodes.append(node)
+	for i in range(params['no_of_tasks']):
+		node = RandomNode(
+			data_set, # input_data_set
+			params['submit_rate'], # submit_rate
+			schemes_generator.with_index(i), # parts_generator
+			random,
+			name = f'computing task #{i}',
+		)
+		nodes.append(node)
 
 	return nodes

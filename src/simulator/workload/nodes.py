@@ -227,7 +227,8 @@ class PhysicsProcessingModel(object):
 		output_fraction: float,
 		output_file_size: int,
 	):
-		self.parts_generator: PartsGenerator = parts_generator # parts generator is specific to a single node in this simulation
+		# parts generator is specific to a single node in this simulation
+		self.parts_generator: PartsGenerator = parts_generator
 		self.job_read_size: int = job_read_size
 		self.output_fraction: float = output_fraction
 		self.output_file_size: int = output_file_size
