@@ -376,22 +376,24 @@ class EVA(StateDrivenOnlineProcessor):
 				info.evas.set_bin_data(reversed_array('d', map(
 					# (cumulative_hits - per_age_bin_width_avg_gain * cumulative_lifetimes) / (cumulative_hits + cumulative_evictions)
 					lambda x: lenient_div((x[1] - per_age_bin_width_avg_gain * x[0]), (x[1] + x[2])),
-					# Accumulates: (cumulative_lifetimes, cumulative_hits, cumulative_evictions)
-					# in reverse bin order.
-					# cumulative_lifetimes is the count of all future lifetimes
-					# for each age bin. Divide this by the number of future
+					# input x: (cumulative_lifetimes, cumulative_hits, cumulative_evictions) in reverse order of bins.
+					# cumulative_lifetimes is the sum of all future lifetimes. divide this by the number of future
 					# events to get the expected lifetime (in units of age bin width).
 					# cumulative_hits is the number of all future hits.
 					# cumulative_evictions is the number of all future evictions.
-					itertools.accumulate(
-						zip_longest_reversed_arrays(
-							# accumulate yields the first input item (the last item here) verbatim, so
-							# setting it to the correct value is necessary
-							array('Q', [0] * (max_counters_length - 1) + [last_cumulative_lifetime]),
-							info.durable_hit_counters.bin_data,
-							info.durable_eviction_counters.bin_data,
+					itertools.chain(
+						((0, 0, 0),),
+						itertools.islice(
+							itertools.accumulate(
+								zip_longest_reversed_arrays(
+									array('q', [0] * (max_counters_length - 1) + [last_cumulative_lifetime]),
+									info.durable_hit_counters.bin_data,
+									info.durable_eviction_counters.bin_data,
+								),
+								lambda acc, inp: (acc[0] + acc[1] + acc[2] + inp[1] + inp[2], acc[1] + inp[1], acc[2] + inp[2]),
+							),
+							max_counters_length - 1,
 						),
-						lambda acc, inp: (acc[0] + acc[1] + acc[2] + inp[1] + inp[2], acc[1] + inp[1], acc[2] + inp[2]),
 					),
 				)))
 
