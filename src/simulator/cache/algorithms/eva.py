@@ -381,18 +381,30 @@ class EVA(StateDrivenOnlineProcessor):
 					# events to get the expected lifetime (in units of age bin width).
 					# cumulative_hits is the number of all future hits.
 					# cumulative_evictions is the number of all future evictions.
-					itertools.chain(
-						((0, 0, 0),),
-						itertools.islice(
-							itertools.accumulate(
-								zip_longest_reversed_arrays(
-									array('q', [0] * (max_counters_length - 1) + [last_cumulative_lifetime]),
-									info.durable_hit_counters.bin_data,
-									info.durable_eviction_counters.bin_data,
-								),
-								lambda acc, inp: (acc[0] + acc[1] + acc[2] + inp[1] + inp[2], acc[1] + inp[1], acc[2] + inp[2]),
+					map(
+						# interpolate: centre of the age bin
+						lambda x: (x[0] + x[5]/2, x[1]+x[3]/2, x[2]+x[4]/2),
+						itertools.accumulate(
+							zip_longest_reversed_arrays(
+								array('q', itertools.repeat(0, max_counters_length)),
+								array('q', itertools.repeat(0, max_counters_length)),
+								array('q', itertools.repeat(0, max_counters_length)),
+								hit_counters,
+								eviction_counters,
+								# accumulate yields the first input item (the last item here) as is, so
+								# setting it to the correct value is necessary:
+								array('q', [0] * (max_counters_length - 1) + [last_events]),
 							),
-							max_counters_length - 1,
+							lambda acc, inp: (
+								acc[0] + acc[5], # last cumulative lifetime counter + increase
+								acc[1] + acc[3], # increase by previous hit counter value
+								acc[2] + acc[4], # increase by previous eviction counter value
+								inp[3], # next hit counter value (carried forward from input)
+								inp[4], # next eviction counter value (carried forward from input)
+								(acc[1] + acc[3] + inp[3]) + (acc[2] + acc[4] + inp[4]), # next increase of
+								# the cumulative life time counter: the next value of cumulative hits + next
+								# value of cumulative evictions
+							),
 						),
 					),
 				)))
