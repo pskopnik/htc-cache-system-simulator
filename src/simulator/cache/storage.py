@@ -83,6 +83,68 @@ class Storage(object):
 
 		return evicted_bytes
 
+	def evict_partially(
+		self,
+		file: FileID,
+		fraction: float = 1.0,
+		parts: Optional[Iterable[PartInd]] = None,
+	) -> BytesSize:
+		"""Evicts fraction bytes of parts of file from the storage.
+
+		This method may break aspects of the model!
+		For fractional eviction of parts, it assumes that accesses always read the full part, i.e. specify the full size as the part size in the scheme.
+
+		No action is performed when the file is not in cache.
+		The parts parameter filters the list of parts in the cache in the sense of ``parts_in_cache intersection parts``.
+		If there are no remaining parts, that is fine.
+		If some evictions are expected
+
+		flooring bytes to be evicted
+
+		Args:
+			file: File key
+			parts: Parts . If parts is ``None``, all parts in cache are considered.
+
+		Returns:
+			Number of bytes evicted from the storage.
+		"""
+		if fraction < 0.0 or fraction > 1.0:
+			raise ValueError(f'Argument fraction must be in [0.0, 1.0], is {fraction!r}')
+
+		try:
+			file_parts = self._files[file]
+		except KeyError:
+			return 0
+
+		candidate_parts: Iterable[PartInd]
+		if parts is None:
+			candidate_parts = list(file_parts.keys())
+		else:
+			candidate_parts = (part_ind for part_ind in parts if part_ind in file_parts)
+
+		evicted_bytes = 0
+
+		if fraction == 1.0:
+			for part_ind in candidate_parts:
+				evicted_bytes += file_parts.pop(part_ind)
+		else:
+			for part_ind in candidate_parts:
+				part_size = file_parts[part_ind]
+				part_evicted_bytes = round(fraction * part_size)
+				part_remaining_size = part_size - part_evicted_bytes
+				file_parts[part_ind] = part_remaining_size
+
+				if part_remaining_size == 0:
+					del file_parts[part_ind]
+
+				evicted_bytes += part_evicted_bytes
+
+		if len(file_parts) == 0:
+			del self._files[file]
+
+		self._used_bytes -= evicted_bytes
+
+		return evicted_bytes
 
 	def place(self, file: FileID, parts: Sequence[PartSpec]) -> BytesSize:
 		"""Places the passed parts of file in the storage.
