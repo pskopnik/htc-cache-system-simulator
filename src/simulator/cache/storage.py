@@ -1,4 +1,4 @@
-from typing import Dict, List, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
 from ..workload import BytesSize, FileID, PartInd, PartSpec
 
@@ -25,6 +25,9 @@ class Storage(object):
 	def free_bytes(self) -> BytesSize:
 		return self._total_bytes - self._used_bytes
 
+	def files(self) -> Iterable[FileID]:
+		return self._files.keys()
+
 	def parts(self, file: FileID) -> List[PartSpec]:
 		"""Returns all parts of file which are contained in the storage.
 		"""
@@ -49,6 +52,17 @@ class Storage(object):
 				return False
 
 		return True
+
+	def contained_parts(self, file: FileID, parts: Sequence[PartSpec]) -> List[PartSpec]:
+		try:
+			file_parts = self._files[file]
+		except KeyError:
+			return []
+
+		return [
+			(part_ind, min(file_parts[part_ind], part_bytes)) for part_ind, part_bytes in parts
+			if part_ind in file_parts
+		]
 
 	def contained_bytes(self, file: FileID, parts: Sequence[PartSpec]) -> BytesSize:
 		try:

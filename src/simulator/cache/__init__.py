@@ -17,6 +17,10 @@ class CacheSystem(abc.ABC):
 	def stats(self) -> StatsCounters:
 		raise NotImplementedError
 
+	@abc.abstractmethod
+	def reset_after_warm_up(self) -> None:
+		raise NotImplementedError
+
 
 class OnlineCacheSystem(CacheSystem):
 	def __init__(self, processors: Iterable[Processor], access_it: Iterable[AccessAssignment]):
@@ -28,6 +32,9 @@ class OnlineCacheSystem(CacheSystem):
 	@property
 	def stats(self) -> StatsCounters:
 		return self._stats_collector.stats
+
+	def reset_after_warm_up(self) -> None:
+		self._stats_collector.reset()
 
 	def __iter__(self) -> Iterator[AccessInfo]:
 		return iter(self._stats_collector)
@@ -60,6 +67,9 @@ class GeneratorOfflineCacheSystem(CacheSystem):
 	@property
 	def stats(self) -> StatsCounters:
 		return self._stats_collector.stats
+
+	def reset_after_warm_up(self) -> None:
+		self._stats_collector.reset()
 
 	def __iter__(self) -> Iterator[AccessInfo]:
 		return iter(self._stats_collector)
@@ -98,6 +108,9 @@ class OfflineCacheSystem(CacheSystem):
 	@property
 	def stats(self) -> StatsCounters:
 		return self._stats_collector.stats
+
+	def reset_after_warm_up(self) -> None:
+		self._stats_collector.reset()
 
 	def __iter__(self) -> Iterator[AccessInfo]:
 		return iter(self._stats_collector)

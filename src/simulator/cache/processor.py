@@ -3,12 +3,13 @@ from collections import deque
 from typing import Any, cast, Deque, Generator, Iterable, Iterator, List, Optional, Sequence
 
 from .accesses import SimpleAccessReader
-from ..workload import Access, FileID, TimeStamp
+from ..workload import Access, FileID, PartSpec, TimeStamp
 
 
 class AccessInfo(object):
 	__slots__ = [
 		'access',
+		'hit_parts',
 		'file_hit',
 		'bytes_hit',
 		'bytes_missed',
@@ -21,6 +22,7 @@ class AccessInfo(object):
 	def __init__(
 		self,
 		access: Access,
+		hit_parts: Sequence[PartSpec],
 		file_hit: bool,
 		bytes_hit: int,
 		bytes_missed: int,
@@ -30,6 +32,7 @@ class AccessInfo(object):
 		evicted_files: Sequence[FileID],
 	):
 		self.access: Access = access
+		self.hit_parts: Sequence[PartSpec] = hit_parts
 		self.file_hit: bool = file_hit
 		self.bytes_hit: int = bytes_hit
 		self.bytes_missed: int = bytes_missed

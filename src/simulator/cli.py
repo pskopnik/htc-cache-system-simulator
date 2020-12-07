@@ -220,7 +220,7 @@ def replay(args: Any) -> None:
 		if args.warm_up_accesses is not None:
 			collections.deque(itertools.islice(cache_sys, args.warm_up_accesses), maxlen=0)
 
-		cache_sys.stats.reset()
+		cache_sys.reset_after_warm_up()
 
 	if args.cache_info_file_path is not None:
 		recorder.record_access_info_path(args.cache_info_file_path, cache_sys)

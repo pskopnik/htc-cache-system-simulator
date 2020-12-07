@@ -17,7 +17,6 @@ __all__ = [
 	'Storage',
 ]
 
-# TODO: Move Item type of StateDrivenProcessor.remove() here
 
 class StateDrivenProcessor(object):
 	class State(abc.ABC):
@@ -74,13 +73,15 @@ class StateDrivenProcessor(object):
 
 		file_hit = self._storage.contains_file(access.file)
 		requested_bytes = sum(part_bytes for part_ind, part_bytes in access.parts)
-		contained_bytes = self._storage.contained_bytes(access.file, access.parts)
+		contained_parts = self._storage.contained_parts(access.file, access.parts)
+		contained_bytes = sum(size for _, size in contained_parts)
 		missing_bytes = requested_bytes - contained_bytes
 		in_cache_bytes = sum(part_bytes for _, part_bytes in self._storage.parts(access.file))
 
 		if missing_bytes == 0:
 			info = AccessInfo(
 				access,
+				contained_parts,
 				True,
 				contained_bytes,
 				missing_bytes,
@@ -89,7 +90,7 @@ class StateDrivenProcessor(object):
 				in_cache_bytes,
 				[],
 			)
-			# In a distributed cache processors environment, the cache processor may not track the
+			# In a many-cache-processors environment, the cache processor may not track the
 			# file, thus, the processor must ensure the file is tracked.
 			ensure = True
 			self._state.process_access(access.file, ind, ensure, info)
@@ -125,6 +126,7 @@ class StateDrivenProcessor(object):
 					# takes place before re-placement. I.e. the access is a
 					# a complete miss.
 
+					contained_parts = []
 					contained_bytes = 0
 					missing_bytes = requested_bytes
 					in_cache_bytes = 0
@@ -134,6 +136,7 @@ class StateDrivenProcessor(object):
 
 		info = AccessInfo(
 			access,
+			contained_parts,
 			file_hit,
 			contained_bytes,
 			missing_bytes,
