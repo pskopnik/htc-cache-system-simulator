@@ -1,5 +1,7 @@
 # A HTC Cache System Simulator
 
+[![DOI](https://zenodo.org/badge/319737624.svg)](https://zenodo.org/badge/latestdoi/319737624)
+
 This simulator for cache systems part of High-Throughput Computing clusters
 has been developed as part of my master's thesis. As is custom for such a
 project, the code is severely underdocumented and undertested. Some modules
