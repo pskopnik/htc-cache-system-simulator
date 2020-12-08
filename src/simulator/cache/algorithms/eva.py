@@ -365,7 +365,7 @@ class EVA(StateDrivenOnlineProcessor):
 					len(info.durable_hit_counters.bin_data),
 					len(info.durable_eviction_counters.bin_data),
 				)
-				last_cumulative_lifetime = (
+				last_bin_events = (
 						array_get(info.durable_hit_counters.bin_data, max_counters_length - 1)
 					+
 						array_get(info.durable_eviction_counters.bin_data, max_counters_length - 1)
@@ -389,11 +389,11 @@ class EVA(StateDrivenOnlineProcessor):
 								array('q', itertools.repeat(0, max_counters_length)),
 								array('q', itertools.repeat(0, max_counters_length)),
 								array('q', itertools.repeat(0, max_counters_length)),
-								hit_counters,
-								eviction_counters,
+								info.durable_hit_counters.bin_data,
+								info.durable_eviction_counters.bin_data,
 								# accumulate yields the first input item (the last item here) as is, so
 								# setting it to the correct value is necessary:
-								array('q', [0] * (max_counters_length - 1) + [last_events]),
+								array('q', [0] * (max_counters_length - 1) + [last_bin_events]),
 							),
 							lambda acc, inp: (
 								acc[0] + acc[5], # last cumulative lifetime counter + increase
@@ -415,14 +415,28 @@ class EVA(StateDrivenOnlineProcessor):
 					'hits': info.durable_hit_counters.bin_data,
 					'evictions': info.durable_eviction_counters.bin_data,
 					'max_counters_length': max_counters_length,
-					'last_cumulative_lifetime': last_cumulative_lifetime,
+					'last_bin_events': last_bin_events,
 					'accumulation': list(itertools.accumulate(
 						zip_longest_reversed_arrays(
-							array('Q', [0] * (max_counters_length - 1) + [last_cumulative_lifetime]),
+							array('q', itertools.repeat(0, max_counters_length)),
+							array('q', itertools.repeat(0, max_counters_length)),
+							array('q', itertools.repeat(0, max_counters_length)),
 							info.durable_hit_counters.bin_data,
 							info.durable_eviction_counters.bin_data,
+							# accumulate yields the first input item (the last item here) as is, so
+							# setting it to the correct value is necessary:
+							array('q', [0] * (max_counters_length - 1) + [last_bin_events]),
 						),
-						lambda acc, inp: (acc[0] + acc[1] + acc[2] + inp[1] + inp[2], acc[1] + inp[1], acc[2] + inp[2]),
+						lambda acc, inp: (
+							acc[0] + acc[5], # last cumulative lifetime counter + increase
+							acc[1] + acc[3], # increase by previous hit counter value
+							acc[2] + acc[4], # increase by previous eviction counter value
+							inp[3], # next hit counter value (carried forward from input)
+							inp[4], # next eviction counter value (carried forward from input)
+							(acc[1] + acc[3] + inp[3]) + (acc[2] + acc[4] + inp[4]), # next increase of
+							# the cumulative life time counter: the next value of cumulative hits + next
+							# value of cumulative evictions
+						),
 					)),
 					'evas': info.evas.bin_data,
 				})
