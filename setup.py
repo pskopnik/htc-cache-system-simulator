@@ -5,7 +5,7 @@ with open('README.md') as file:
 
 setup(
     name = "simulator",
-    version = "0.1.dev0",
+    version = "1.0.1",
     description = "Simulates a cache system in a high-throughput computing environment",
     author = "Paul Skopnik",
     author_email = "paul@skopnik.me",
