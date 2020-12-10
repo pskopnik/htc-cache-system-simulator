@@ -54,7 +54,7 @@ class FIFO(StateDrivenOnlineProcessor):
 			del self._lru[file]
 
 		def process_access(self, file: FileID, ind: int, ensure: bool, info: AccessInfo) -> None:
-			if ensure:
+			if file not in self._lru:
 				self._lru[file] = None
 				self._lru.access(file)
 
