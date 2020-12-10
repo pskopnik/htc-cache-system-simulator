@@ -60,7 +60,17 @@
 
    * gLRU, gRAND
 
+   * SHiP
+
+   * TALUS or SLIDE
+
    * Workload-derived caching policy
+
+ * Misclassification based on rolling window of observed classes
+
+   Choose whether the correct class is returned through parameter kappa.
+   If not, use observed distribution to choose a random class.
+   This may still be the correct one, but that's okay, matches kappa coefficient.
 
  * cache bypassing?
 
